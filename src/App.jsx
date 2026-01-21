@@ -15,6 +15,7 @@ import PersonnelDashboard from "./pages/Personnel/PersonnelDashboard/PersonnelDa
 import DirectDashboard from "./pages/HeadDirector/DirectorDashboard/DirectDashboard";
 import ICTAdminDashboard from "./pages/ICTAdmin/ICTAdminDashboard/ICTAdminDashboard";
 import PersonnelMembers from "./pages/ICTAdmin/PersonnelMembers/PersonnelMembers";
+import TimeLogging from "./pages/ICTAdmin/TimeLogging/TimeLogging";
 import DirectorMembers from "./pages/ICTAdmin/DirectorMembers/DirectorMembers";
 
 // Protected Route Component
@@ -104,7 +105,7 @@ const AppRoutes = () => {
         <Route path="users/directors" element={<DirectorMembers />} />
         <Route
           path="users/time-logging"
-          element={<InDevelopment label="Time logging is in development." />}
+          element={<TimeLogging />}
         />
 
         {/* ICT Admin placeholders */}

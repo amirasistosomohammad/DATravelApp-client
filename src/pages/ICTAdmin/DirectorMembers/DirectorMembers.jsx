@@ -268,7 +268,17 @@ const DirectorMembers = () => {
 
   // Helper functions for number formatting
   const formatFullNumber = (value) => {
-    return Number(value || 0).toLocaleString(undefined, {
+    if (value === null || value === undefined) return "0";
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed === "" || Number.isNaN(Number(trimmed))) return value;
+      return Number(trimmed).toLocaleString(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      });
+    }
+    if (Number.isNaN(Number(value))) return String(value);
+    return Number(value).toLocaleString(undefined, {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     });
@@ -573,7 +583,7 @@ const DirectorMembers = () => {
   }, [director, filteredDirector]);
 
   if (loading) {
-    return (
+  return (
       <div className="container-fluid py-2 director-management-container">
         <LoadingSpinner text="Loading director members..." />
       </div>

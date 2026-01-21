@@ -216,9 +216,9 @@ const Sidebar = ({ onCloseSidebar }) => {
           {isAdmin()
             ? "ICT Admin"
             : isDirector()
-            ? "Director"
+            ? user?.position || "Director"
             : isPersonnel()
-            ? "Personnel"
+            ? user?.position || "Personnel"
             : "User"}
         </div>
       </div>

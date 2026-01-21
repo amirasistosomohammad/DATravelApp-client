@@ -451,6 +451,7 @@ const DirectorFormModal = ({
       },
       first_name: (value) => (value.trim() ? "" : "First name is required"),
       last_name: (value) => (value.trim() ? "" : "Last name is required"),
+      position: (value) => (value.trim() ? "" : "Position is required"),
       phone: (value) => {
         if (!value) return "";
         const digits = value.replace(/\D/g, "");
@@ -508,6 +509,9 @@ const DirectorFormModal = ({
     }
     if (!formData.last_name || !formData.last_name.trim()) {
       newErrors.last_name = "Last name is required";
+    }
+    if (!formData.position || !formData.position.trim()) {
+      newErrors.position = "Position is required";
     }
 
     if (!formData.is_active && !formData.reason_for_deactivation.trim()) {

@@ -190,8 +190,8 @@ const Topbar = ({ onToggleSidebar }) => {
   // Get role display text
   const getRoleDisplay = () => {
     if (isAdmin()) return "ICT Admin";
-    if (isDirector()) return "Director";
-    if (isPersonnel()) return "Personnel";
+    if (isDirector()) return user?.position || "Director";
+    if (isPersonnel()) return user?.position || "Personnel";
     return "User";
   };
 
