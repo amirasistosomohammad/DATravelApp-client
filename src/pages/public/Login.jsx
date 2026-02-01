@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaUser, FaLock, FaEye, FaEyeSlash, FaSpinner } from "react-icons/fa";
 import { useAuth } from "../../contexts/AuthContext";
+import { useBranding } from "../../contexts/BrandingContext";
 import { showAlert } from "../../services/notificationService";
 import { toast } from "react-toastify";
 import LoginBackground from "../../assets/images/login_background.png";
-import Logo from "../../assets/images/logo.png";
+import LogoFallback from "../../assets/images/logo.png";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -15,6 +16,9 @@ export default function Login() {
 
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { logoUrl, logoText, loading: brandingLoading } = useBranding();
+  const logo = logoUrl || LogoFallback;
+  const brandName = logoText || "DATravelApp";
 
   useEffect(() => {
     const handleResize = () => {
@@ -179,23 +183,32 @@ export default function Login() {
             zIndex: 1,
           }}
         >
-          {/* Logo Section */}
+          {/* Logo Section - skeleton while branding loads from DB */}
           <div className="text-center mb-4">
             <div
               className="d-flex align-items-center justify-content-center mx-auto"
-              style={{
-                width: "fit-content",
-              }}
+              style={{ width: "fit-content" }}
             >
-              <img
-                src={Logo}
-                alt="DA TravelApp Logo"
-                style={{
-                  width: windowWidth < 576 ? "100px" : "120px",
-                  height: windowWidth < 576 ? "100px" : "120px",
-                  objectFit: "contain",
-                }}
-              />
+              {brandingLoading ? (
+                <div
+                  className="branding-skeleton-login"
+                  style={{
+                    width: windowWidth < 576 ? 100 : 120,
+                    height: windowWidth < 576 ? 100 : 120,
+                  }}
+                  aria-hidden
+                />
+              ) : (
+                <img
+                  src={logo}
+                  alt={`${brandName} Logo`}
+                  style={{
+                    width: windowWidth < 576 ? "100px" : "120px",
+                    height: windowWidth < 576 ? "100px" : "120px",
+                    objectFit: "contain",
+                  }}
+                />
+              )}
             </div>
           </div>
 
@@ -394,8 +407,17 @@ export default function Login() {
               color: theme.textSecondary,
             }}
           >
-            © {new Date().getFullYear()} DATravelApp: AN OFFICIAL TRAVEL ORDER
-            MANAGEMENT SYSTEM. All rights reserved.
+            © {new Date().getFullYear()}{" "}
+            {brandingLoading ? (
+              <span
+                className="branding-skeleton-login d-inline-block align-baseline"
+                style={{ width: "90px", height: "1em", verticalAlign: "middle" }}
+                aria-hidden
+              />
+            ) : (
+              <>{brandName}</>
+            )}
+            : AN OFFICIAL TRAVEL ORDER MANAGEMENT SYSTEM. All rights reserved.
           </p>
         </div>
       </footer>

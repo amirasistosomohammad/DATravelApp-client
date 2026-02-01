@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { useBranding } from "../contexts/BrandingContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import { showAlert } from "../services/notificationService";
 import { toast } from "react-toastify";
-import logo from "../assets/images/logo_navbar.png";
+import logoFallback from "../assets/images/logo_navbar.png";
 
 const Topbar = ({ onToggleSidebar }) => {
   const { user, logout, isAdmin, isPersonnel, isDirector } = useAuth();
+  const { logoUrl, logoText, loading: brandingLoading } = useBranding();
+  const logo = logoUrl || logoFallback;
+  const brandName = logoText || "DATravelApp";
   const navigate = useNavigate();
   const location = useLocation();
   const [avatarLoading, setAvatarLoading] = useState(true);
@@ -218,76 +222,81 @@ const Topbar = ({ onToggleSidebar }) => {
       {/* Navbar Brand - RESPONSIVE */}
       <div className="navbar-brand ps-3 ps-sm-4 d-flex align-items-center">
         <div className="d-flex align-items-center" style={{ gap: "12px" }}>
-          {/* Larger Responsive Logo */}
-          <img
-            src={logo}
-            alt="DATravelApp Logo"
-            className="d-none d-sm-block"
-            style={{
-              width: "45px",
-              height: "45px",
-              objectFit: "contain",
-            }}
-          />
+          {brandingLoading ? (
+            <>
+              {/* Skeleton: logo + text while branding fetches */}
+              <div
+                className="branding-skeleton-logo d-none d-sm-block"
+                style={{ width: "45px", height: "45px" }}
+                aria-hidden
+              />
+              <div
+                className="branding-skeleton-logo d-block d-sm-none"
+                style={{ width: "35px", height: "35px" }}
+                aria-hidden
+              />
+              <div className="d-flex flex-column justify-content-center" style={{ gap: "4px" }}>
+                <div className="branding-skeleton-text d-none d-md-block" style={{ width: "140px", height: "20px" }} aria-hidden />
+                <div className="branding-skeleton-text d-none d-sm-block d-md-none" style={{ width: "120px", height: "16px" }} aria-hidden />
+                <div className="branding-skeleton-text d-block d-sm-none" style={{ width: "100px", height: "20px" }} aria-hidden />
+                <div className="branding-skeleton-text d-none d-sm-block" style={{ width: "180px", height: "11px", marginTop: "2px" }} aria-hidden />
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Larger Responsive Logo */}
+              <img
+                src={logo}
+                alt={`${brandName} Logo`}
+                className="d-none d-sm-block"
+                style={{
+                  width: "45px",
+                  height: "45px",
+                  objectFit: "contain",
+                }}
+              />
 
-          {/* Mobile Logo - Smaller */}
-          <img
-            src={logo}
-            alt="DATravelApp Logo"
-            className="d-block d-sm-none"
-            style={{
-              width: "35px",
-              height: "35px",
-              objectFit: "contain",
-            }}
-          />
+              {/* Mobile Logo - Smaller */}
+              <img
+                src={logo}
+                alt={`${brandName} Logo`}
+                className="d-block d-sm-none"
+                style={{
+                  width: "35px",
+                  height: "35px",
+                  objectFit: "contain",
+                }}
+              />
 
-          {/* Text Brand Name - Responsive */}
-          <div className="d-flex flex-column justify-content-center">
-            {/* Desktop & Tablet */}
-            <span
-              className="fw-bold text-white d-none d-md-block"
-              style={{
-                fontSize: "20px",
-                lineHeight: "1.1",
-              }}
-            >
-              DATravelApp
-            </span>
-
-            {/* Mobile - Medium screens */}
-            <span
-              className="fw-bold text-white d-none d-sm-block d-md-none"
-              style={{
-                fontSize: "16px",
-                lineHeight: "1.1",
-              }}
-            >
-              DATravelApp
-            </span>
-
-            {/* Mobile - Small screens */}
-            <span
-              className="fw-bold text-white d-block d-sm-none"
-              style={{
-                fontSize: "20px",
-                lineHeight: "1.1",
-              }}
-            >
-              DATravelApp
-            </span>
-
-            {/* Subtitle - Desktop & Tablet only */}
-            <small
-              className="text-white-50 d-none d-sm-block"
-              style={{
-                fontSize: "11px",
-                lineHeight: "1.1",
-              }}
-            >
-              Travel Order Management System
-            </small>
-          </div>
+              {/* Text Brand Name - Responsive */}
+              <div className="d-flex flex-column justify-content-center">
+                <span
+                  className="fw-bold text-white d-none d-md-block"
+                  style={{ fontSize: "20px", lineHeight: "1.1" }}
+                >
+                  {brandName}
+                </span>
+                <span
+                  className="fw-bold text-white d-none d-sm-block d-md-none"
+                  style={{ fontSize: "16px", lineHeight: "1.1" }}
+                >
+                  {brandName}
+                </span>
+                <span
+                  className="fw-bold text-white d-block d-sm-none"
+                  style={{ fontSize: "20px", lineHeight: "1.1" }}
+                >
+                  {brandName}
+                </span>
+                <small
+                  className="text-white-50 d-none d-sm-block"
+                  style={{ fontSize: "11px", lineHeight: "1.1" }}
+                >
+                  Travel Order Management System
+                </small>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

@@ -8,6 +8,7 @@ import {
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { BrandingProvider } from "./contexts/BrandingContext";
 import Preloader from "./components/Preloader";
 import Login from "./pages/public/Login";
 import Layout from "./layout/Layout";
@@ -17,6 +18,7 @@ import ICTAdminDashboard from "./pages/ICTAdmin/ICTAdminDashboard/ICTAdminDashbo
 import PersonnelMembers from "./pages/ICTAdmin/PersonnelMembers/PersonnelMembers";
 import TimeLogging from "./pages/ICTAdmin/TimeLogging/TimeLogging";
 import DirectorMembers from "./pages/ICTAdmin/DirectorMembers/DirectorMembers";
+import SystemSettings from "./pages/ICTAdmin/Settings/SystemSettings";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -130,7 +132,9 @@ const AppRoutes = () => {
         <Route
           path="settings"
           element={
-            <InDevelopment label="System settings are in development." />
+            <ProtectedRoute>
+              <SystemSettings />
+            </ProtectedRoute>
           }
         />
 
@@ -168,9 +172,10 @@ const AppRoutes = () => {
 const App = () => {
   return (
     <Router>
-      <AuthProvider>
-        <AppRoutes />
-        <ToastContainer
+      <BrandingProvider>
+        <AuthProvider>
+          <AppRoutes />
+          <ToastContainer
           position="top-right"
           autoClose={3000}
           hideProgressBar={false}
@@ -181,8 +186,10 @@ const App = () => {
           draggable
           pauseOnHover
           theme="light"
+          style={{ zIndex: 99999 }}
         />
-      </AuthProvider>
+        </AuthProvider>
+      </BrandingProvider>
     </Router>
   );
 };

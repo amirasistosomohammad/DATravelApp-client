@@ -2,14 +2,21 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useBranding } from "../contexts/BrandingContext";
 import Topbar from "./Topbar";
 import Sidebar from "./Sidebar";
 import Footer from "./Footer";
 
 const Layout = () => {
   const { user, isAuthenticated } = useAuth();
+  const { refetchBranding } = useBranding();
   const navigate = useNavigate();
   const [sidebarToggled, setSidebarToggled] = useState(false);
+
+  // Refetch branding when Layout (topbar) mounts so topbar shows skeleton then DB branding
+  useEffect(() => {
+    refetchBranding();
+  }, [refetchBranding]);
 
   const toggleSidebar = () => {
     setSidebarToggled(!sidebarToggled);

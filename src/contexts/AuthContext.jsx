@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from "react";
+import React, { createContext, useState, useContext, useEffect, useCallback } from "react";
 
 const AuthContext = createContext(null);
 
@@ -256,11 +256,30 @@ export const AuthProvider = ({ children }) => {
     return user?.role === "director";
   };
 
+  // Re-validate token and refresh user (e.g. after password change)
+  const checkAuth = useCallback(async () => {
+    const t = localStorage.getItem("token");
+    if (!t) return;
+    try {
+      const response = await apiCall("/me", { method: "GET" });
+      if (response.success && response.data?.user) {
+        const userData = response.data.user;
+        setUser(userData);
+        setIsAuthenticated(true);
+        localStorage.setItem("user", JSON.stringify(userData));
+      }
+    } catch (err) {
+      console.warn("checkAuth failed:", err);
+    }
+  }, []);
+
   const value = {
     user,
     loading,
     isAuthenticated,
     authTransitioning,
+    token: typeof window !== "undefined" ? localStorage.getItem("token") : null,
+    checkAuth,
     login,
     logout,
     updateUser,

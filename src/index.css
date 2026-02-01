@@ -1027,6 +1027,84 @@ body {
   }
 }
 
+/* Branding loading skeleton (topbar: visible on dark green; login: gray) */
+.branding-skeleton-logo {
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.32);
+  flex-shrink: 0;
+}
+.branding-skeleton-logo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 100%
+  );
+  animation: branding-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes branding-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.branding-skeleton-text {
+  height: 20px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.32);
+  position: relative;
+  overflow: hidden;
+  min-width: 100px;
+  flex-shrink: 0;
+}
+.branding-skeleton-text::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 100%
+  );
+  animation: branding-shimmer 1.5s ease-in-out infinite;
+}
+/* Topbar-specific: ensure skeleton is inside topbar and visible */
+.sb-topnav .branding-skeleton-logo,
+.sb-topnav .branding-skeleton-text {
+  background-color: rgba(255, 255, 255, 0.35);
+}
+.sb-topnav .branding-skeleton-logo::after,
+.sb-topnav .branding-skeleton-text::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.5) 50%,
+    transparent 100%
+  );
+}
+.branding-skeleton-login {
+  border-radius: 12px;
+  background-color: #e8e8e8;
+  position: relative;
+  overflow: hidden;
+}
+.branding-skeleton-login::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.6) 50%,
+    transparent 100%
+  );
+  animation: branding-shimmer 1.5s ease-in-out infinite;
+}
+
 /* SweetAlert2 z-index override for modals */
 .swal2-container-modal {
   z-index: 10002 !important;
@@ -1040,11 +1118,37 @@ body {
   z-index: 10001 !important;
 }
 
-/* Loading modal above logout overlay (topbar/sidebar covered by overlay at 2060) */
+/* Loading modal with dark overlay - backdrop covers topbar (2050) and sidebar (1038) */
+.swal2-container-loading.swal2-backdrop-show {
+  background: rgba(0, 0, 0, 0.5) !important;
+  z-index: 2060 !important;
+}
+
 .swal2-container-loading {
   z-index: 2070 !important;
 }
 
 .swal2-container-loading .swal2-popup {
   z-index: 2070 !important;
+}
+
+/* SweetAlert toasts (showToast) above topbar */
+.swal2-container.swal2-toast {
+  z-index: 10000 !important;
+}
+
+.swal2-container.swal2-toast .swal2-popup {
+  z-index: 10000 !important;
+}
+
+/* react-toastify above topbar (topbar is 2050) - override library default 9999 */
+:root {
+  --toastify-z-index: 99999;
+}
+.Toastify__toast-container {
+  position: fixed !important;
+  z-index: 99999 !important;
+}
+.Toastify__toast {
+  z-index: 99999 !important;
 }

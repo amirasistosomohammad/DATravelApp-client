@@ -85,6 +85,27 @@ export const showAlert = {
     });
   },
 
+  /** Loading modal with dark overlay (covers topbar/sidebar like logout). Use when blocking the whole app. */
+  loadingWithOverlay: (title) => {
+    return Swal.fire({
+      title: title,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false,
+      backdrop: true,
+      width: 360,
+      padding: "1rem",
+      background: "#ffffff",
+      customClass: {
+        popup: "da-swal-loading",
+        container: "swal2-container-loading",
+      },
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+  },
+
   close: () => {
     Swal.close();
   },
