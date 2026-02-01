@@ -1039,3 +1039,12 @@ body {
 .swal2-container-modal.swal2-backdrop-show {
   z-index: 10001 !important;
 }
+
+/* Loading modal above logout overlay (topbar/sidebar covered by overlay at 2060) */
+.swal2-container-loading {
+  z-index: 2070 !important;
+}
+
+.swal2-container-loading .swal2-popup {
+  z-index: 2070 !important;
+}

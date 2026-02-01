@@ -129,6 +129,19 @@ export default function Login() {
         position: "relative",
       }}
     >
+      {/* Loading overlay - dark backdrop when submitting (matches other modals) */}
+      {isSubmitting && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 modal-backdrop-animation"
+          style={{
+            backgroundColor: "rgba(0,0,0,0.5)",
+            zIndex: 1000,
+            pointerEvents: "none",
+          }}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Background Image */}
       <div
         className="position-fixed"

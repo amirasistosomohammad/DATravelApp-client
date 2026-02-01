@@ -12,6 +12,7 @@ const Topbar = ({ onToggleSidebar }) => {
   const [avatarLoading, setAvatarLoading] = useState(true);
   const [avatarError, setAvatarError] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -46,16 +47,8 @@ const Topbar = ({ onToggleSidebar }) => {
     );
 
     if (result.isConfirmed) {
-      showAlert.loading(
-        "Logging out...",
-        "Please wait while we securely log you out",
-        {
-          allowOutsideClick: false,
-          allowEscapeKey: false,
-          allowEnterKey: false,
-          showConfirmButton: false,
-        }
-      );
+      setIsLoggingOut(true);
+      showAlert.loading("Logging out...");
 
       disableTopbarInteractions();
 
@@ -63,12 +56,14 @@ const Topbar = ({ onToggleSidebar }) => {
         try {
           await logout();
           showAlert.close();
+          setIsLoggingOut(false);
           setShowDropdown(false);
           enableTopbarInteractions();
           toast.success("You have been logged out successfully");
           navigate("/");
         } catch (error) {
           showAlert.close();
+          setIsLoggingOut(false);
           enableTopbarInteractions();
           showAlert.error(
             "Logout Error",
@@ -196,8 +191,22 @@ const Topbar = ({ onToggleSidebar }) => {
   };
 
   return (
-    <nav
-      className="sb-topnav navbar navbar-expand navbar-dark"
+    <>
+      {/* Loading overlay - dark backdrop when logging out (matches login and other modals) */}
+      {isLoggingOut && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 modal-backdrop-animation"
+          style={{
+            backgroundColor: "rgba(0,0,0,0.5)",
+            zIndex: 2060,
+            pointerEvents: "none",
+          }}
+          aria-hidden="true"
+        />
+      )}
+
+      <nav
+        className="sb-topnav navbar navbar-expand navbar-dark"
       style={{
         display: "flex",
         alignItems: "center",
@@ -424,6 +433,7 @@ const Topbar = ({ onToggleSidebar }) => {
         }
       `}</style>
     </nav>
+    </>
   );
 };
 

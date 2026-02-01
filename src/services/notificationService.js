@@ -77,6 +77,7 @@ export const showAlert = {
       background: "#ffffff",
       customClass: {
         popup: "da-swal-loading",
+        container: "swal2-container-loading",
       },
       didOpen: () => {
         Swal.showLoading();

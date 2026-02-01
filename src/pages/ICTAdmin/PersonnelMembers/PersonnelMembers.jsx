@@ -16,9 +16,15 @@ const DEFAULT_PAGE_SIZE = 10;
 // Global cache outside component to persist across re-renders
 const loadedImagesCache = new Set();
 
+// Fixed dimensions for rectangle avatar (full image, no crop, consistent size)
+const AVATAR_RECTANGLE_WIDTH = 80;
+const AVATAR_RECTANGLE_HEIGHT = 100;
+// Full-width image strip at top of card (same height for all cards)
+const AVATAR_CARD_TOP_HEIGHT = 140;
+
 // Personnel Avatar Component
 const PersonnelAvatar = React.memo(
-  ({ person, size = 44 }) => {
+  ({ person, size = 44, shape = "circle" }) => {
     const getPersonnelAvatarUrl = useCallback((person) => {
       if (!person) return null;
       if (person.avatar_path) {
@@ -160,30 +166,38 @@ const PersonnelAvatar = React.memo(
       e.target.style.display = "none";
     }, []);
 
+    const isCardTop = shape === "cardTop";
+    const isRect = shape === "rectangle";
+    const boxWidth = isCardTop ? "100%" : isRect ? AVATAR_RECTANGLE_WIDTH : size;
+    const boxHeight = isCardTop ? "100%" : isRect ? AVATAR_RECTANGLE_HEIGHT : size;
+    const boxRadius = isCardTop ? 0 : isRect ? "8px" : "50%";
+
     if (person.avatar_path && !imageError && avatarUrl) {
       return (
         <div
-          className="rounded-circle overflow-hidden border position-relative"
+          className="overflow-hidden border position-relative"
           style={{
-            width: size,
-            height: size,
+            width: boxWidth,
+            height: boxHeight,
+            borderRadius: boxRadius,
             borderColor: "#e1e6ef",
             flexShrink: 0,
-            backgroundColor: "#f4f6fb",
+            backgroundColor: "var(--background-light)",
           }}
         >
-          {/* Loading skeleton */}
+          {/* Loading state: shimmer skeleton while image fetches */}
           {imageLoading && (
             <div
-              className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+              className="position-absolute top-0 start-0 w-100 h-100"
               style={{
-                backgroundColor: "#e9ecef",
-                zIndex: 1,
+                backgroundColor: "var(--background-light)",
+                zIndex: 2,
               }}
             >
               <div
-                className="w-100 h-100 rounded-circle"
+                className="w-100 h-100"
                 style={{
+                  borderRadius: boxRadius,
                   background:
                     "linear-gradient(90deg, #e9ecef 0%, #f8f9fa 50%, #e9ecef 100%)",
                   backgroundSize: "200% 100%",
@@ -196,13 +210,14 @@ const PersonnelAvatar = React.memo(
             ref={imgRef}
             src={avatarUrl}
             alt={`${getFullName(person)}'s avatar`}
-            className="rounded-circle border"
+            className="border-0"
             style={{
               width: "100%",
               height: "100%",
-              objectFit: "cover",
+              objectFit: isRect || isCardTop ? "contain" : "cover",
               opacity: imageLoading ? 0 : 1,
               transition: "opacity 0.3s ease-in-out",
+              borderRadius: boxRadius,
             }}
             onLoad={handleImageLoad}
             onError={handleImageError}
@@ -213,11 +228,12 @@ const PersonnelAvatar = React.memo(
 
     return (
       <div
-        className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
+        className="d-flex align-items-center justify-content-center text-white fw-bold"
         style={{
-          width: size,
-          height: size,
-          backgroundColor: "#0E254B",
+          width: boxWidth,
+          height: boxHeight,
+          borderRadius: boxRadius,
+          backgroundColor: "var(--primary-color)",
           flexShrink: 0,
         }}
       >
@@ -226,11 +242,11 @@ const PersonnelAvatar = React.memo(
     );
   },
   (prevProps, nextProps) => {
-    // Only re-render if person data actually changed
     return (
       prevProps.person?.id === nextProps.person?.id &&
       prevProps.person?.avatar_path === nextProps.person?.avatar_path &&
-      prevProps.size === nextProps.size
+      prevProps.size === nextProps.size &&
+      prevProps.shape === nextProps.shape
     );
   }
 );
@@ -489,7 +505,9 @@ const PersonnelMembers = () => {
 
     const confirm = await showAlert.confirm(
       "Delete Personnel",
-      `Are you sure you want to delete ${getFullName(record)} (${record.username})? This action cannot be undone.`,
+      `Are you sure you want to delete ${getFullName(record)} (${
+        record.username
+      })? This action cannot be undone.`,
       "Delete",
       "Cancel"
     );
@@ -527,7 +545,9 @@ const PersonnelMembers = () => {
     } catch (error) {
       console.error("Error deleting personnel:", error);
       showAlert.close();
-      toast.error(error.message || "Unable to delete personnel. Please try again.");
+      toast.error(
+        error.message || "Unable to delete personnel. Please try again."
+      );
     } finally {
       setActionLoading(null);
       setActionLock(false);
@@ -592,6 +612,78 @@ const PersonnelMembers = () => {
   return (
     <div className="container-fluid px-1 py-2 personnel-management-container page-enter">
       <style>{`
+        .personnel-management-container .personnel-card:hover .personnel-card-actions {
+          opacity: 1 !important;
+        }
+        /* Edit button: amber/orange so distinct from green, good contrast with white icon */
+        .personnel-management-container .personnel-card-edit-btn {
+          background-color: #d97706 !important;
+          border-color: #d97706 !important;
+          color: #ffffff !important;
+        }
+        .personnel-management-container .personnel-card-edit-btn:hover:not(:disabled) {
+          background-color: #b45309 !important;
+          border-color: #b45309 !important;
+          color: #ffffff !important;
+        }
+        /* Delete button: hover effect (darker red) */
+        .personnel-management-container .personnel-card-delete-btn:hover:not(:disabled) {
+          background-color: #b02a37 !important;
+          border-color: #b02a37 !important;
+          color: #ffffff !important;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 8px rgba(220, 53, 69, 0.4);
+        }
+        /* Mobile & small screens: always show Edit/Delete (no hover on touch) */
+        @media (max-width: 767.98px) {
+          .personnel-management-container .personnel-card .personnel-card-actions {
+            opacity: 1 !important;
+          }
+        }
+        /* Mobile & small screens: force 2-panel grid so cards fit side-by-side */
+        @media (max-width: 767.98px) {
+          .personnel-management-container .personnel-cards-grid {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            margin-left: -0.25rem !important;
+            margin-right: -0.25rem !important;
+            padding: 0.5rem 0 !important;
+            gap: 0 !important;
+          }
+          .personnel-management-container .personnel-cards-grid > [class*="col-"] {
+            flex: 0 0 50% !important;
+            max-width: 50% !important;
+            width: 50% !important;
+            padding-left: 0.25rem !important;
+            padding-right: 0.25rem !important;
+            padding-bottom: 0.5rem !important;
+            box-sizing: border-box !important;
+            min-width: 0 !important;
+          }
+          .personnel-management-container .personnel-card-top-strip {
+            height: 90px !important;
+          }
+          .personnel-management-container .personnel-card .card-body {
+            padding: 0.5rem 0.6rem !important;
+          }
+          .personnel-management-container .personnel-card .fw-semibold {
+            font-size: 0.8rem !important;
+          }
+          .personnel-management-container .personnel-card .personnel-card-actions .btn {
+            width: 28px !important;
+            height: 28px !important;
+            font-size: 0.7rem !important;
+          }
+          .personnel-management-container .personnel-card .personnel-card-actions {
+            padding: 0.25rem !important;
+          }
+          .personnel-management-container .personnel-card .small {
+            font-size: 0.7rem !important;
+          }
+          .personnel-management-container .personnel-card .badge {
+            font-size: 0.6rem !important;
+          }
+        }
         @media (min-width: 992px) {
           .personnel-management-container .table th,
           .personnel-management-container .table td {
@@ -1191,328 +1283,270 @@ const PersonnelMembers = () => {
             </div>
           ) : (
             <>
-              <div className="table-responsive">
-                <table
-                  className="table table-striped table-hover mb-0"
-                  style={{ tableLayout: "auto" }}
+              {/* Sort controls for grid (same as before, compact) */}
+              <div
+                className="d-flex flex-wrap align-items-center gap-2 px-3 py-2 border-bottom"
+                style={{
+                  backgroundColor: "var(--background-light)",
+                  borderColor: "var(--input-border)",
+                }}
+              >
+                <span className="small text-muted">Sort:</span>
+                <button
+                  className="btn btn-sm btn-outline-secondary py-1"
+                  onClick={() => handleSort("last_name")}
+                  disabled={isActionDisabled()}
                 >
-                  <thead
-                    style={{
-                      background: "var(--topbar-bg)",
-                      color: "var(--topbar-text)",
-                    }}
-                  >
-                    <tr>
-                      <th
-                        style={{ width: "4%", minWidth: "40px" }}
-                        className="text-center small fw-semibold"
-                      >
-                        #
-                      </th>
-                      <th
-                        style={{ width: "12%", minWidth: "120px" }}
-                        className="text-center small fw-semibold"
-                      >
-                        Actions
-                      </th>
-                      <th
-                        style={{
-                          width: "25%",
-                          minWidth: "200px",
-                          maxWidth: "300px",
+                  Name <i className={`ms-1 ${getSortIcon("last_name")}`}></i>
+                </button>
+                <button
+                  className="btn btn-sm btn-outline-secondary py-1"
+                  onClick={() => handleSort("created_at")}
+                  disabled={isActionDisabled()}
+                >
+                  Registered{" "}
+                  <i className={`ms-1 ${getSortIcon("created_at")}`}></i>
+                </button>
+              </div>
+
+              {/* Personnel cards grid */}
+              <div
+                className="row g-2 g-sm-3 p-2 p-sm-3 personnel-cards-grid"
+                style={{ minHeight: "200px" }}
+              >
+                {currentPersonnel.map((person, index) => {
+                  const createdInfo = formatLocalDateTime(person.created_at);
+                  return (
+                    <div
+                      key={person.id}
+                      className="col-6 col-md-4 col-lg-3"
+                    >
+                      <div
+                        className="personnel-card h-100 position-relative rounded-3 border overflow-hidden"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() =>
+                          !isActionDisabled(person.id) && openView(person)
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            if (!isActionDisabled(person.id)) openView(person);
+                          }
                         }}
-                        className="small fw-semibold"
+                        style={{
+                          backgroundColor: "var(--background-white)",
+                          borderColor: "var(--input-border)",
+                          cursor: isActionDisabled(person.id)
+                            ? "not-allowed"
+                            : "pointer",
+                          transition:
+                            "box-shadow 0.2s ease, transform 0.2s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isActionDisabled(person.id)) {
+                            e.currentTarget.style.boxShadow =
+                              "0 8px 24px rgba(0,0,0,0.1)";
+                            e.currentTarget.style.transform =
+                              "translateY(-2px)";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.boxShadow = "none";
+                          e.currentTarget.style.transform = "translateY(0)";
+                        }}
                       >
-                        <button
-                          className="btn btn-link p-0 border-0 text-decoration-none fw-semibold text-start"
-                          onClick={() => handleSort("last_name")}
-                          disabled={isActionDisabled()}
-                          style={{ color: "var(--text-primary)" }}
+                        {/* Full-width image at very top of card (same height for all) */}
+                        <div
+                          className="personnel-card-top-strip w-100 overflow-hidden position-relative"
+                          style={{
+                            height: AVATAR_CARD_TOP_HEIGHT,
+                            flexShrink: 0,
+                            backgroundColor: "var(--background-light)",
+                          }}
                         >
-                          Personnel
-                          <i
-                            className={`ms-1 ${getSortIcon("last_name")}`}
-                            style={{ color: "var(--text-primary)" }}
-                          ></i>
-                        </button>
-                      </th>
-                      <th
-                        style={{ width: "15%", minWidth: "150px" }}
-                        className="small fw-semibold"
-                      >
-                        Department
-                      </th>
-                      <th
-                        style={{ width: "15%", minWidth: "150px" }}
-                        className="small fw-semibold"
-                      >
-                        Position
-                      </th>
-                      <th
-                        style={{ width: "8%", minWidth: "80px" }}
-                        className="text-center small fw-semibold"
-                      >
-                        Status
-                      </th>
-                      <th
-                        style={{ width: "12%", minWidth: "140px" }}
-                        className="small fw-semibold"
-                      >
-                        <button
-                          className="btn btn-link p-0 border-0 text-decoration-none fw-semibold text-start"
-                          onClick={() => handleSort("created_at")}
-                          disabled={isActionDisabled()}
-                          style={{ color: "var(--text-primary)" }}
+                          <PersonnelAvatar
+                            person={person}
+                            shape="cardTop"
+                          />
+                        </div>
+
+                        {/* Hover actions - Edit & Delete */}
+                        <div
+                          className="personnel-card-actions position-absolute top-0 end-0 d-flex gap-1 p-2"
+                          style={{
+                            zIndex: 2,
+                            opacity: 0,
+                            transition: "opacity 0.2s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.stopPropagation();
+                            const card =
+                              e.currentTarget.closest(".personnel-card");
+                            if (card) {
+                              const actions = card.querySelector(
+                                ".personnel-card-actions"
+                              );
+                              if (actions) actions.style.opacity = "1";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            const card =
+                              e.currentTarget.closest(".personnel-card");
+                            if (card) {
+                              const actions = card.querySelector(
+                                ".personnel-card-actions"
+                              );
+                              if (actions) actions.style.opacity = "0";
+                            }
+                          }}
                         >
-                          Registered
-                          <i
-                            className={`ms-1 ${getSortIcon("created_at")}`}
-                            style={{ color: "var(--text-primary)" }}
-                          ></i>
-                        </button>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {currentPersonnel.map((person, index) => {
-                      const createdInfo = formatLocalDateTime(
-                        person.created_at
-                      );
-                      return (
-                        <tr key={person.id} className="align-middle">
-                          <td
-                            className="text-center fw-bold"
-                            style={{ color: "var(--text-primary)" }}
-                          >
-                            {startIndex + index + 1}
-                          </td>
-                          <td className="text-center">
-                            <div className="d-flex justify-content-center gap-1">
-                              {/* View button */}
-                              <button
-                                className="btn btn-info btn-sm text-white"
-                                onClick={() => openView(person)}
-                                disabled={isActionDisabled(person.id)}
-                                title="View details"
-                                style={{
-                                  width: "32px",
-                                  height: "32px",
-                                  borderRadius: "6px",
-                                  transition: "all 0.2s ease-in-out",
-                                  padding: 0,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
-                                onMouseEnter={(e) => {
-                                  if (!e.target.disabled) {
-                                    e.target.style.transform =
-                                      "translateY(-1px)";
-                                    e.target.style.boxShadow =
-                                      "0 4px 8px rgba(0,0,0,0.2)";
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.target.style.transform = "translateY(0)";
-                                  e.target.style.boxShadow = "none";
-                                }}
-                              >
-                                <i
-                                  className="fas fa-eye"
-                                  style={{ fontSize: "0.875rem" }}
-                                ></i>
-                              </button>
-
-                              {/* Edit button */}
-                              <button
-                                className="btn btn-success btn-sm text-white"
-                                onClick={() => openEdit(person)}
-                                disabled={isActionDisabled(person.id)}
-                                title="Edit personnel"
-                                style={{
-                                  width: "32px",
-                                  height: "32px",
-                                  borderRadius: "6px",
-                                  transition: "all 0.2s ease-in-out",
-                                  padding: 0,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
-                                onMouseEnter={(e) => {
-                                  if (!e.target.disabled) {
-                                    e.target.style.transform =
-                                      "translateY(-1px)";
-                                    e.target.style.boxShadow =
-                                      "0 4px 8px rgba(0,0,0,0.2)";
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.target.style.transform = "translateY(0)";
-                                  e.target.style.boxShadow = "none";
-                                }}
-                              >
-                                {actionLoading === person.id ? (
-                                  <span
-                                    className="spinner-border spinner-border-sm"
-                                    role="status"
-                                  ></span>
-                                ) : (
-                                  <i
-                                    className="fas fa-edit"
-                                    style={{ fontSize: "0.875rem" }}
-                                  ></i>
-                                )}
-                              </button>
-
-                              {/* Delete button */}
-                              <button
-                                className="btn btn-danger btn-sm text-white"
-                                onClick={() => handleDelete(person)}
-                                disabled={isActionDisabled(person.id)}
-                                title="Delete Personnel"
-                                style={{
-                                  width: "32px",
-                                  height: "32px",
-                                  borderRadius: "6px",
-                                  transition: "all 0.2s ease-in-out",
-                                  padding: 0,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
-                                onMouseEnter={(e) => {
-                                  if (!e.target.disabled) {
-                                    e.target.style.transform =
-                                      "translateY(-1px)";
-                                    e.target.style.boxShadow =
-                                      "0 4px 8px rgba(0,0,0,0.2)";
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.target.style.transform = "translateY(0)";
-                                  e.target.style.boxShadow = "none";
-                                }}
-                              >
-                                {actionLoading === person.id ? (
-                                  <span
-                                    className="spinner-border spinner-border-sm"
-                                    role="status"
-                                  ></span>
-                                ) : (
-                                  <i
-                                    className="fas fa-trash"
-                                    style={{ fontSize: "0.875rem" }}
-                                  ></i>
-                                )}
-                              </button>
-                            </div>
-                          </td>
-                          <td
+                          <button
+                            type="button"
+                            className="btn btn-sm shadow-sm personnel-card-action-btn personnel-card-edit-btn"
+                            title="Edit personnel"
+                            disabled={isActionDisabled(person.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEdit(person);
+                            }}
                             style={{
-                              maxWidth: "300px",
-                              overflow: "hidden",
+                              width: "36px",
+                              height: "36px",
+                              borderRadius: "50%",
+                              backgroundColor: "#d97706",
+                              color: "#ffffff",
+                              border: "2px solid #d97706",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
                             }}
                           >
-                            <div className="d-flex align-items-center gap-2">
-                              <PersonnelAvatar person={person} />
-                              <div
-                                className="flex-grow-1"
-                                style={{ minWidth: 0, overflow: "hidden" }}
-                              >
-                                <div
-                                  className="fw-medium mb-1"
-                                  style={{
-                                    color: "var(--text-primary)",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                  title={getFullName(person)}
-                                >
-                                  {getFullName(person)}
-                                </div>
-                                <div
-                                  className="small"
-                                  style={{
-                                    color: "var(--text-muted)",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                  title={`@${person.username}`}
-                                >
-                                  @{person.username}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td
+                            {actionLoading === person.id ? (
+                              <span
+                                className="spinner-border spinner-border-sm"
+                                role="status"
+                              />
+                            ) : (
+                              <i
+                                className="fas fa-edit"
+                                style={{ fontSize: "0.8rem" }}
+                              />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm shadow-sm personnel-card-action-btn personnel-card-delete-btn"
+                            title="Delete personnel"
+                            disabled={isActionDisabled(person.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(person);
+                            }}
                             style={{
-                              maxWidth: "200px",
-                              overflow: "hidden",
+                              width: "36px",
+                              height: "36px",
+                              borderRadius: "50%",
+                              backgroundColor: "#dc3545",
+                              color: "white",
+                              border: "2px solid #dc3545",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
                             }}
                           >
+                            <i
+                              className="fas fa-trash"
+                              style={{ fontSize: "0.8rem" }}
+                            />
+                          </button>
+                        </div>
+
+                        <div className="card-body p-3">
+                          <div className="mb-2">
                             <div
+                              className="fw-semibold mb-0"
                               style={{
                                 color: "var(--text-primary)",
+                                fontSize: "0.95rem",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
                               }}
-                              title={person.department || "Not specified"}
+                              title={getFullName(person)}
                             >
-                              {person.department || "Not specified"}
+                              {getFullName(person)}
                             </div>
-                          </td>
-                          <td
-                            style={{
-                              maxWidth: "200px",
-                              overflow: "hidden",
-                            }}
-                          >
                             <div
+                              className="small text-muted mt-1"
                               style={{
-                                color: "var(--text-primary)",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
                               }}
-                              title={person.position || "Not specified"}
+                              title={`@${person.username}`}
                             >
-                              {person.position || "Not specified"}
+                              @{person.username}
                             </div>
-                          </td>
-                          <td className="text-center">
-                            <span
-                              className={`badge ${
-                                person.is_active !== false
-                                  ? "bg-success"
-                                  : "bg-secondary"
-                              }`}
-                            >
-                              {person.is_active !== false
-                                ? "Active"
-                                : "Inactive"}
-                            </span>
-                          </td>
-                          <td>
-                            <small
-                              style={{
-                                color: "var(--text-muted)",
-                                paddingRight: "1rem",
-                                display: "block",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {createdInfo.date} {createdInfo.time}
-                            </small>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                          </div>
+                          <div
+                            className="mt-3 pt-3"
+                            style={{
+                              borderTop: "1px solid var(--input-border)",
+                            }}
+                          >
+                            <div className="small d-flex justify-content-between align-items-center mb-1">
+                              <span className="text-muted">Department</span>
+                              <span
+                                className="fw-medium text-truncate ms-2"
+                                style={{
+                                  color: "var(--text-primary)",
+                                  maxWidth: "60%",
+                                }}
+                                title={person.department || "—"}
+                              >
+                                {person.department || "—"}
+                              </span>
+                            </div>
+                            <div className="small d-flex justify-content-between align-items-center mb-1">
+                              <span className="text-muted">Position</span>
+                              <span
+                                className="fw-medium text-truncate ms-2"
+                                style={{
+                                  color: "var(--text-primary)",
+                                  maxWidth: "60%",
+                                }}
+                                title={person.position || "—"}
+                              >
+                                {person.position || "—"}
+                              </span>
+                            </div>
+                            <div className="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-1">
+                              <span
+                                className={`badge ${
+                                  person.is_active !== false
+                                    ? "bg-success"
+                                    : "bg-secondary"
+                                }`}
+                                style={{ fontSize: "0.7rem" }}
+                              >
+                                {person.is_active !== false
+                                  ? "Active"
+                                  : "Inactive"}
+                              </span>
+                              <small
+                                className="text-muted"
+                                style={{ fontSize: "0.7rem" }}
+                              >
+                                {createdInfo.date}
+                              </small>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Pagination */}

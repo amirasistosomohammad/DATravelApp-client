@@ -13,12 +13,17 @@ const API_BASE_URL =
 
 const DEFAULT_PAGE_SIZE = 10;
 
+// Fixed dimensions for rectangle avatar and full-width card top (same as Personnel)
+const AVATAR_RECTANGLE_WIDTH = 80;
+const AVATAR_RECTANGLE_HEIGHT = 100;
+const AVATAR_CARD_TOP_HEIGHT = 140;
+
 // Global cache outside component to persist across re-renders
 const loadedImagesCache = new Set();
 
 // Director Avatar Component
 const DirectorAvatar = React.memo(
-  ({ person, size = 44 }) => {
+  ({ person, size = 44, shape = "circle" }) => {
     const getDirectorAvatarUrl = useCallback((person) => {
       if (!person) return null;
       if (person.avatar_path) {
@@ -160,30 +165,38 @@ const DirectorAvatar = React.memo(
       e.target.style.display = "none";
     }, []);
 
+    const isCardTop = shape === "cardTop";
+    const isRect = shape === "rectangle";
+    const boxWidth = isCardTop ? "100%" : isRect ? AVATAR_RECTANGLE_WIDTH : size;
+    const boxHeight = isCardTop ? "100%" : isRect ? AVATAR_RECTANGLE_HEIGHT : size;
+    const boxRadius = isCardTop ? 0 : isRect ? "8px" : "50%";
+
     if (person.avatar_path && !imageError && avatarUrl) {
       return (
         <div
-          className="rounded-circle overflow-hidden border position-relative"
+          className="overflow-hidden border position-relative"
           style={{
-            width: size,
-            height: size,
+            width: boxWidth,
+            height: boxHeight,
+            borderRadius: boxRadius,
             borderColor: "#e1e6ef",
             flexShrink: 0,
-            backgroundColor: "#f4f6fb",
+            backgroundColor: "var(--background-light)",
           }}
         >
-          {/* Loading skeleton */}
+          {/* Loading state: shimmer skeleton while image fetches */}
           {imageLoading && (
             <div
-              className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+              className="position-absolute top-0 start-0 w-100 h-100"
               style={{
-                backgroundColor: "#e9ecef",
-                zIndex: 1,
+                backgroundColor: "var(--background-light)",
+                zIndex: 2,
               }}
             >
               <div
-                className="w-100 h-100 rounded-circle"
+                className="w-100 h-100"
                 style={{
+                  borderRadius: boxRadius,
                   background:
                     "linear-gradient(90deg, #e9ecef 0%, #f8f9fa 50%, #e9ecef 100%)",
                   backgroundSize: "200% 100%",
@@ -196,13 +209,14 @@ const DirectorAvatar = React.memo(
             ref={imgRef}
             src={avatarUrl}
             alt={`${getFullName(person)}'s avatar`}
-            className="rounded-circle border"
+            className="border-0"
             style={{
               width: "100%",
               height: "100%",
-              objectFit: "cover",
+              objectFit: isRect || isCardTop ? "contain" : "cover",
               opacity: imageLoading ? 0 : 1,
               transition: "opacity 0.3s ease-in-out",
+              borderRadius: boxRadius,
             }}
             onLoad={handleImageLoad}
             onError={handleImageError}
@@ -213,11 +227,12 @@ const DirectorAvatar = React.memo(
 
     return (
       <div
-        className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
+        className="d-flex align-items-center justify-content-center text-white fw-bold"
         style={{
-          width: size,
-          height: size,
-          backgroundColor: "#0E254B",
+          width: boxWidth,
+          height: boxHeight,
+          borderRadius: boxRadius,
+          backgroundColor: "var(--primary-color)",
           flexShrink: 0,
         }}
       >
@@ -226,11 +241,11 @@ const DirectorAvatar = React.memo(
     );
   },
   (prevProps, nextProps) => {
-    // Only re-render if person data actually changed
     return (
       prevProps.person?.id === nextProps.person?.id &&
       prevProps.person?.avatar_path === nextProps.person?.avatar_path &&
-      prevProps.size === nextProps.size
+      prevProps.size === nextProps.size &&
+      prevProps.shape === nextProps.shape
     );
   }
 );
@@ -593,22 +608,72 @@ const DirectorMembers = () => {
   return (
     <div className="container-fluid px-1 py-2 director-management-container page-enter">
       <style>{`
-        @media (min-width: 992px) {
-          .director-management-container .table th,
-          .director-management-container .table td {
-            padding: 0.5rem 0.75rem !important;
+        .director-management-container .director-card:hover .director-card-actions {
+          opacity: 1 !important;
+        }
+        .director-management-container .director-card-edit-btn {
+          background-color: #d97706 !important;
+          border-color: #d97706 !important;
+          color: #ffffff !important;
+        }
+        .director-management-container .director-card-edit-btn:hover:not(:disabled) {
+          background-color: #b45309 !important;
+          border-color: #b45309 !important;
+          color: #ffffff !important;
+        }
+        .director-management-container .director-card-delete-btn:hover:not(:disabled) {
+          background-color: #b02a37 !important;
+          border-color: #b02a37 !important;
+          color: #ffffff !important;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 8px rgba(220, 53, 69, 0.4);
+        }
+        @media (max-width: 767.98px) {
+          .director-management-container .director-card .director-card-actions {
+            opacity: 1 !important;
           }
         }
-        @media (min-width: 1200px) {
-          .director-management-container .table th,
-          .director-management-container .table td {
-            padding: 0.5rem 0.5rem !important;
+        @media (max-width: 767.98px) {
+          .director-management-container .director-cards-grid {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            margin-left: -0.25rem !important;
+            margin-right: -0.25rem !important;
+            padding: 0.5rem 0 !important;
+            gap: 0 !important;
           }
-        }
-        @media (min-width: 1400px) {
-          .director-management-container .table th,
-          .director-management-container .table td {
-            padding: 0.5rem 0.4rem !important;
+          .director-management-container .director-cards-grid > [class*="col-"] {
+            flex: 0 0 50% !important;
+            max-width: 50% !important;
+            width: 50% !important;
+            padding-left: 0.25rem !important;
+            padding-right: 0.25rem !important;
+            padding-bottom: 0.5rem !important;
+            box-sizing: border-box !important;
+            min-width: 0 !important;
+          }
+          .director-management-container .director-card-top-strip {
+            height: 90px !important;
+          }
+          .director-management-container .director-card .card-body {
+            padding: 0.5rem 0.6rem !important;
+          }
+          .director-management-container .director-card .fw-semibold {
+            font-size: 0.8rem !important;
+          }
+          .director-management-container .director-card .director-card-actions .btn {
+            width: 28px !important;
+            height: 28px !important;
+            font-size: 0.7rem !important;
+          }
+          .director-management-container .director-card .director-card-actions {
+            padding: 0.25rem !important;
+          }
+          .director-management-container .director-card .small {
+            font-size: 0.7rem !important;
+          }
+          .director-management-container .director-card .badge {
+            font-size: 0.6rem !important;
           }
         }
       `}</style>
@@ -1192,352 +1257,275 @@ const DirectorMembers = () => {
             </div>
           ) : (
             <>
-              <div className="table-responsive">
-                <table
-                  className="table table-striped table-hover mb-0"
-                  style={{ tableLayout: "auto" }}
+              <div
+                className="d-flex flex-wrap align-items-center gap-2 px-3 py-2 border-bottom"
+                style={{
+                  backgroundColor: "var(--background-light)",
+                  borderColor: "var(--input-border)",
+                }}
+              >
+                <span className="small text-muted">Sort:</span>
+                <button
+                  className="btn btn-sm btn-outline-secondary py-1"
+                  onClick={() => handleSort("last_name")}
+                  disabled={isActionDisabled()}
                 >
-                  <thead
-                    style={{
-                      background: "var(--topbar-bg)",
-                      color: "var(--topbar-text)",
-                    }}
-                  >
-                    <tr>
-                      <th
-                        style={{ width: "4%", minWidth: "40px" }}
-                        className="text-center small fw-semibold"
-                      >
-                        #
-                      </th>
-                      <th
-                        style={{ width: "12%", minWidth: "120px" }}
-                        className="text-center small fw-semibold"
-                      >
-                        Actions
-                      </th>
-                      <th
-                        style={{
-                          width: "25%",
-                          minWidth: "200px",
-                          maxWidth: "300px",
+                  Name <i className={`ms-1 ${getSortIcon("last_name")}`}></i>
+                </button>
+                <button
+                  className="btn btn-sm btn-outline-secondary py-1"
+                  onClick={() => handleSort("created_at")}
+                  disabled={isActionDisabled()}
+                >
+                  Registered <i className={`ms-1 ${getSortIcon("created_at")}`}></i>
+                </button>
+              </div>
+
+              <div
+                className="row g-2 g-sm-3 p-2 p-sm-3 director-cards-grid"
+                style={{ minHeight: "200px" }}
+              >
+                {currentDirector.map((person, index) => {
+                  const createdInfo = formatLocalDateTime(person.created_at);
+                  return (
+                    <div
+                      key={person.id}
+                      className="col-6 col-md-4 col-lg-3"
+                    >
+                      <div
+                        className="director-card h-100 position-relative rounded-3 border overflow-hidden"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() =>
+                          !isActionDisabled(person.id) && openView(person)
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            if (!isActionDisabled(person.id)) openView(person);
+                          }
                         }}
-                        className="small fw-semibold"
+                        style={{
+                          backgroundColor: "var(--background-white)",
+                          borderColor: "var(--input-border)",
+                          cursor: isActionDisabled(person.id)
+                            ? "not-allowed"
+                            : "pointer",
+                          transition:
+                            "box-shadow 0.2s ease, transform 0.2s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isActionDisabled(person.id)) {
+                            e.currentTarget.style.boxShadow =
+                              "0 8px 24px rgba(0,0,0,0.1)";
+                            e.currentTarget.style.transform =
+                              "translateY(-2px)";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.boxShadow = "none";
+                          e.currentTarget.style.transform = "translateY(0)";
+                        }}
                       >
-                        <button
-                          className="btn btn-link p-0 border-0 text-decoration-none fw-semibold text-start"
-                          onClick={() => handleSort("last_name")}
-                          disabled={isActionDisabled()}
-                          style={{ color: "var(--text-primary)" }}
+                        <div
+                          className="director-card-top-strip w-100 overflow-hidden position-relative"
+                          style={{
+                            height: AVATAR_CARD_TOP_HEIGHT,
+                            flexShrink: 0,
+                            backgroundColor: "var(--background-light)",
+                          }}
                         >
-                          Director
-                          <i
-                            className={`ms-1 ${getSortIcon("last_name")}`}
-                            style={{ color: "var(--text-primary)" }}
-                          ></i>
-                        </button>
-                      </th>
-                      <th
-                        style={{ width: "15%", minWidth: "150px" }}
-                        className="small fw-semibold"
-                      >
-                        Department
-                      </th>
-                      <th
-                        style={{ width: "15%", minWidth: "150px" }}
-                        className="small fw-semibold"
-                      >
-                        Position
-                      </th>
-                      <th
-                        style={{ width: "18%", minWidth: "180px" }}
-                        className="small fw-semibold"
-                      >
-                        Contact Information
-                      </th>
-                      <th
-                        style={{ width: "8%", minWidth: "80px" }}
-                        className="text-center small fw-semibold"
-                      >
-                        Status
-                      </th>
-                      <th
-                        style={{ width: "12%", minWidth: "140px" }}
-                        className="small fw-semibold"
-                      >
-                        <button
-                          className="btn btn-link p-0 border-0 text-decoration-none fw-semibold text-start"
-                          onClick={() => handleSort("created_at")}
-                          disabled={isActionDisabled()}
-                          style={{ color: "var(--text-primary)" }}
+                          <DirectorAvatar person={person} shape="cardTop" />
+                        </div>
+
+                        <div
+                          className="director-card-actions position-absolute top-0 end-0 d-flex gap-1 p-2"
+                          style={{
+                            zIndex: 2,
+                            opacity: 0,
+                            transition: "opacity 0.2s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.stopPropagation();
+                            const card =
+                              e.currentTarget.closest(".director-card");
+                            if (card) {
+                              const actions = card.querySelector(
+                                ".director-card-actions"
+                              );
+                              if (actions) actions.style.opacity = "1";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            const card =
+                              e.currentTarget.closest(".director-card");
+                            if (card) {
+                              const actions = card.querySelector(
+                                ".director-card-actions"
+                              );
+                              if (actions) actions.style.opacity = "0";
+                            }
+                          }}
                         >
-                          Registered
-                          <i
-                            className={`ms-1 ${getSortIcon("created_at")}`}
-                            style={{ color: "var(--text-primary)" }}
-                          ></i>
-                        </button>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {currentDirector.map((person, index) => {
-                      const createdInfo = formatLocalDateTime(
-                        person.created_at
-                      );
-                      return (
-                        <tr key={person.id} className="align-middle">
-                          <td
-                            className="text-center fw-bold"
-                            style={{ color: "var(--text-primary)" }}
+                          <button
+                            type="button"
+                            className="btn btn-sm shadow-sm director-card-edit-btn"
+                            title="Edit director"
+                            disabled={isActionDisabled(person.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEdit(person);
+                            }}
+                            style={{
+                              width: "36px",
+                              height: "36px",
+                              borderRadius: "50%",
+                              backgroundColor: "#d97706",
+                              color: "#ffffff",
+                              border: "2px solid #d97706",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
                           >
-                            {startIndex + index + 1}
-                          </td>
-                          <td className="text-center">
-                            <div className="d-flex justify-content-center gap-1">
-                              {/* View button */}
-                              <button
-                                className="btn btn-info btn-sm text-white"
-                                onClick={() => openView(person)}
-                                disabled={isActionDisabled(person.id)}
-                                title="View details"
-                                style={{
-                                  width: "32px",
-                                  height: "32px",
-                                  borderRadius: "6px",
-                                  transition: "all 0.2s ease-in-out",
-                                  padding: 0,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
-                                onMouseEnter={(e) => {
-                                  if (!e.target.disabled) {
-                                    e.target.style.transform =
-                                      "translateY(-1px)";
-                                    e.target.style.boxShadow =
-                                      "0 4px 8px rgba(0,0,0,0.2)";
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.target.style.transform = "translateY(0)";
-                                  e.target.style.boxShadow = "none";
-                                }}
-                              >
-                                <i
-                                  className="fas fa-eye"
-                                  style={{ fontSize: "0.875rem" }}
-                                ></i>
-                              </button>
+                            {actionLoading === person.id ? (
+                              <span
+                                className="spinner-border spinner-border-sm"
+                                role="status"
+                              />
+                            ) : (
+                              <i
+                                className="fas fa-edit"
+                                style={{ fontSize: "0.8rem" }}
+                              />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm shadow-sm director-card-action-btn director-card-delete-btn"
+                            title="Delete director"
+                            disabled={isActionDisabled(person.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(person);
+                            }}
+                            style={{
+                              width: "36px",
+                              height: "36px",
+                              borderRadius: "50%",
+                              backgroundColor: "#dc3545",
+                              color: "white",
+                              border: "2px solid #dc3545",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <i
+                              className="fas fa-trash"
+                              style={{ fontSize: "0.8rem" }}
+                            />
+                          </button>
+                        </div>
 
-                              {/* Edit button */}
-                              <button
-                                className="btn btn-success btn-sm text-white"
-                                onClick={() => openEdit(person)}
-                                disabled={isActionDisabled(person.id)}
-                                title="Edit director"
+                        <div className="card-body p-3">
+                          <div className="mb-2">
+                            <div
+                              className="fw-semibold mb-0"
+                              style={{
+                                color: "var(--text-primary)",
+                                fontSize: "0.95rem",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                              title={getFullName(person)}
+                            >
+                              {getFullName(person)}
+                            </div>
+                            <div
+                              className="small text-muted mt-1"
+                              style={{
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                              title={`@${person.username}`}
+                            >
+                              @{person.username}
+                            </div>
+                          </div>
+                          <div
+                            className="mt-3 pt-3"
+                            style={{
+                              borderTop: "1px solid var(--input-border)",
+                            }}
+                          >
+                            <div className="small d-flex justify-content-between align-items-center mb-1">
+                              <span className="text-muted">Department</span>
+                              <span
+                                className="fw-medium text-truncate ms-2"
                                 style={{
-                                  width: "32px",
-                                  height: "32px",
-                                  borderRadius: "6px",
-                                  transition: "all 0.2s ease-in-out",
-                                  padding: 0,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
+                                  color: "var(--text-primary)",
+                                  maxWidth: "60%",
                                 }}
-                                onMouseEnter={(e) => {
-                                  if (!e.target.disabled) {
-                                    e.target.style.transform =
-                                      "translateY(-1px)";
-                                    e.target.style.boxShadow =
-                                      "0 4px 8px rgba(0,0,0,0.2)";
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.target.style.transform = "translateY(0)";
-                                  e.target.style.boxShadow = "none";
-                                }}
+                                title={person.department || "—"}
                               >
-                                {actionLoading === person.id ? (
-                                  <span
-                                    className="spinner-border spinner-border-sm"
-                                    role="status"
-                                  ></span>
-                                ) : (
-                                  <i
-                                    className="fas fa-edit"
-                                    style={{ fontSize: "0.875rem" }}
-                                  ></i>
-                                )}
-                              </button>
-
-                              {/* Delete button */}
-                              <button
-                                className="btn btn-danger btn-sm text-white"
-                                onClick={() => handleDelete(person)}
-                                disabled={isActionDisabled(person.id)}
-                                title="Delete Director"
+                                {person.department || "—"}
+                              </span>
+                            </div>
+                            <div className="small d-flex justify-content-between align-items-center mb-1">
+                              <span className="text-muted">Position</span>
+                              <span
+                                className="fw-medium text-truncate ms-2"
                                 style={{
-                                  width: "32px",
-                                  height: "32px",
-                                  borderRadius: "6px",
-                                  transition: "all 0.2s ease-in-out",
-                                  padding: 0,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
+                                  color: "var(--text-primary)",
+                                  maxWidth: "60%",
                                 }}
-                                onMouseEnter={(e) => {
-                                  if (!e.target.disabled) {
-                                    e.target.style.transform =
-                                      "translateY(-1px)";
-                                    e.target.style.boxShadow =
-                                      "0 4px 8px rgba(0,0,0,0.2)";
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.target.style.transform = "translateY(0)";
-                                  e.target.style.boxShadow = "none";
-                                }}
+                                title={person.position || "—"}
                               >
-                                {actionLoading === person.id ? (
-                                  <span
-                                    className="spinner-border spinner-border-sm"
-                                    role="status"
-                                  ></span>
-                                ) : (
-                                  <i
-                                    className="fas fa-trash"
-                                    style={{ fontSize: "0.875rem" }}
-                                  ></i>
-                                )}
-                              </button>
+                                {person.position || "—"}
+                              </span>
                             </div>
-                          </td>
-                          <td
-                            style={{
-                              maxWidth: "300px",
-                              overflow: "hidden",
-                            }}
-                          >
-                            <div className="d-flex align-items-center gap-2">
-                              <DirectorAvatar person={person} />
-                              <div
-                                className="flex-grow-1"
-                                style={{ minWidth: 0, overflow: "hidden" }}
+                            <div className="small d-flex justify-content-between align-items-center mb-1">
+                              <span className="text-muted">Contact</span>
+                              <span
+                                className="fw-medium text-truncate ms-2"
+                                style={{
+                                  color: "var(--text-primary)",
+                                  maxWidth: "60%",
+                                }}
+                                title={person.contact_information || "—"}
                               >
-                                <div
-                                  className="fw-medium mb-1"
-                                  style={{
-                                    color: "var(--text-primary)",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                  title={getFullName(person)}
-                                >
-                                  {getFullName(person)}
-                                </div>
-                                <div
-                                  className="small"
-                                  style={{
-                                    color: "var(--text-muted)",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                  title={`@${person.username}`}
-                                >
-                                  @{person.username}
-                                </div>
-                              </div>
+                                {person.contact_information || "—"}
+                              </span>
                             </div>
-                          </td>
-                          <td
-                            style={{
-                              maxWidth: "200px",
-                              overflow: "hidden",
-                            }}
-                          >
-                            <div
-                              style={{
-                                color: "var(--text-primary)",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                              title={person.department || "Not specified"}
-                            >
-                              {person.department || "Not specified"}
+                            <div className="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-1">
+                              <span
+                                className={`badge ${
+                                  person.is_active !== false
+                                    ? "bg-success"
+                                    : "bg-secondary"
+                                }`}
+                                style={{ fontSize: "0.7rem" }}
+                              >
+                                {person.is_active !== false
+                                  ? "Active"
+                                  : "Inactive"}
+                              </span>
+                              <small
+                                className="text-muted"
+                                style={{ fontSize: "0.7rem" }}
+                              >
+                                {createdInfo.date}
+                              </small>
                             </div>
-                          </td>
-                          <td
-                            style={{
-                              maxWidth: "200px",
-                              overflow: "hidden",
-                            }}
-                          >
-                            <div
-                              style={{
-                                color: "var(--text-primary)",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                              title={person.position || "Not specified"}
-                            >
-                              {person.position || "Not specified"}
-                            </div>
-                          </td>
-                          <td
-                            style={{
-                              maxWidth: "220px",
-                              overflow: "hidden",
-                            }}
-                          >
-                            <div
-                              style={{
-                                color: "var(--text-primary)",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                              title={person.contact_information || "Not specified"}
-                            >
-                              {person.contact_information || "Not specified"}
-                            </div>
-                          </td>
-                          <td className="text-center">
-                            <span
-                              className={`badge ${
-                                person.is_active !== false
-                                  ? "bg-success"
-                                  : "bg-secondary"
-                              }`}
-                            >
-                              {person.is_active !== false
-                                ? "Active"
-                                : "Inactive"}
-                            </span>
-                          </td>
-                          <td>
-                            <small
-                              style={{
-                                color: "var(--text-muted)",
-                                paddingRight: "1rem",
-                                display: "block",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {createdInfo.date} {createdInfo.time}
-                            </small>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Pagination */}
