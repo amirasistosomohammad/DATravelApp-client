@@ -19,6 +19,11 @@ import PersonnelMembers from "./pages/ICTAdmin/PersonnelMembers/PersonnelMembers
 import TimeLogging from "./pages/ICTAdmin/TimeLogging/TimeLogging";
 import DirectorMembers from "./pages/ICTAdmin/DirectorMembers/DirectorMembers";
 import SystemSettings from "./pages/ICTAdmin/Settings/SystemSettings";
+import TravelOrdersList from "./pages/Personnel/TravelOrders/TravelOrdersList";
+import TravelOrderForm from "./pages/Personnel/TravelOrders/TravelOrderForm";
+import PendingReviews from "./pages/HeadDirector/PendingReviews/PendingReviews";
+import ReviewTravelOrder from "./pages/HeadDirector/ReviewTravelOrder/ReviewTravelOrder";
+import DirectorHistory from "./pages/HeadDirector/DirectorHistory/DirectorHistory";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -110,13 +115,10 @@ const AppRoutes = () => {
           element={<TimeLogging />}
         />
 
-        {/* ICT Admin placeholders */}
-        <Route
-          path="travel-orders"
-          element={
-            <InDevelopment label="Travel Orders module is in development." />
-          }
-        />
+        {/* Personnel: Travel Orders (Phase 4) */}
+        <Route path="travel-orders" element={<TravelOrdersList />} />
+        <Route path="travel-orders/create" element={<TravelOrderForm />} />
+        <Route path="travel-orders/:id/edit" element={<TravelOrderForm />} />
         <Route
           path="travel-orders/history"
           element={
@@ -138,29 +140,12 @@ const AppRoutes = () => {
           }
         />
 
-        {/* Director placeholders */}
-        <Route
-          path="pending-reviews"
-          element={
-            <InDevelopment label="Pending reviews are in development." />
-          }
-        />
-        <Route
-          path="approved"
-          element={
-            <InDevelopment label="Approved travel orders are in development." />
-          }
-        />
-        <Route
-          path="rejected"
-          element={
-            <InDevelopment label="Rejected travel orders are in development." />
-          }
-        />
-        <Route
-          path="history"
-          element={<InDevelopment label="History module is in development." />}
-        />
+        {/* Director: Travel order reviews (Phase 5) */}
+        <Route path="pending-reviews" element={<PendingReviews />} />
+        <Route path="pending-reviews/:id" element={<ReviewTravelOrder />} />
+        <Route path="approved" element={<DirectorHistory filterStatus="approved" />} />
+        <Route path="rejected" element={<DirectorHistory filterStatus="rejected" />} />
+        <Route path="history" element={<DirectorHistory filterStatus="all" />} />
       </Route>
 
       {/* Catch all - redirect to dashboard */}

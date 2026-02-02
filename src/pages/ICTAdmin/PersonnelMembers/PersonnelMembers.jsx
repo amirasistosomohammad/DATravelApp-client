@@ -28,24 +28,22 @@ const PersonnelAvatar = React.memo(
     const getPersonnelAvatarUrl = useCallback((person) => {
       if (!person) return null;
       if (person.avatar_path) {
-        // Ensure API base URL ends with /api
+        // Full URL from internet (e.g. seeded real people images)
+        if (person.avatar_path.startsWith("http://") || person.avatar_path.startsWith("https://")) {
+          return person.avatar_path;
+        }
+        // API path (uploaded avatar)
         const apiBase =
           (
             import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api"
           ).replace(/\/api\/?$/, "") + "/api";
-
         let cleanFilename = person.avatar_path;
-
-        // Handle different path formats
         if (person.avatar_path.includes("personnel-avatars/")) {
           cleanFilename = person.avatar_path.replace("personnel-avatars/", "");
         } else if (person.avatar_path.includes("avatars/")) {
           cleanFilename = person.avatar_path.replace("avatars/", "");
         }
-
-        // Get just the filename
         cleanFilename = cleanFilename.split("/").pop();
-
         return `${apiBase}/personnel-avatar/${cleanFilename}`;
       }
       return null;

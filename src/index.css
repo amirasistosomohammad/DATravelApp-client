@@ -531,10 +531,13 @@ body.sb-sidenav-toggled #layoutSidenav #layoutSidenav_content {
   min-height: calc(100vh - 60px);
 }
 
-/* Main content area */
+/* Main content area - even vertical spacing for all pages */
 main {
   flex: 1 0 auto;
-  padding: 1rem 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 2.25rem;
+  padding-bottom: 0.75rem;
   overflow: visible;
 }
 
@@ -542,6 +545,12 @@ main {
   /* Consistent gutter across the whole app */
   padding-left: 1rem;
   padding-right: 1rem;
+}
+
+/* Extra top spacing for page content (all components inside main) */
+main > .container-fluid {
+  padding-top: 1rem;
+  padding-bottom: 0.25rem;
 }
 
 @media (max-width: 576px) {
@@ -780,8 +789,10 @@ body {
 }
 
 #layoutSidenav_content main {
-  margin-top: 4.5rem;
-  padding-top: 0.5rem;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 2.25rem;
+  padding-bottom: 0.75rem;
 }
 
 body,
@@ -793,6 +804,28 @@ html,
 body {
   height: auto;
   overflow-y: auto;
+}
+
+/* Login page: full viewport, no scrollbars (body has no topbar padding here) */
+body.login-page-active {
+  padding-top: 0 !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  overflow: hidden !important;
+}
+html.login-page-active {
+  height: 100% !important;
+  overflow: hidden !important;
+}
+html.login-page-active body {
+  height: 100% !important;
+}
+body.login-page-active #root {
+  height: 100% !important;
+  overflow: hidden !important;
+}
+.login-page-root {
+  min-height: 0 !important;
 }
 
 .sb-sidenav-menu-nested .nav-link {
@@ -1048,8 +1081,12 @@ body {
   animation: branding-shimmer 1.5s ease-in-out infinite;
 }
 @keyframes branding-shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 .branding-skeleton-text {
   height: 20px;

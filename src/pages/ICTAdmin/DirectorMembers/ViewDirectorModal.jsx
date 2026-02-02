@@ -22,11 +22,13 @@ const ViewDirectorModal = ({ director, onClose }) => {
   const getDirectorAvatarUrl = (person) => {
     if (!person) return null;
     if (person.avatar_path) {
+      if (person.avatar_path.startsWith("http://") || person.avatar_path.startsWith("https://")) {
+        return person.avatar_path;
+      }
       const apiBase =
         (
           import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api"
         ).replace(/\/api\/?$/, "") + "/api";
-
       let cleanFilename = person.avatar_path;
       if (person.avatar_path.includes("director-avatars/")) {
         cleanFilename = person.avatar_path.replace("director-avatars/", "");

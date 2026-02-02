@@ -29,6 +29,19 @@ export default function Login() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Full-height login: no body/html padding or scroll when this page is active
+  useEffect(() => {
+    document.documentElement.classList.add("login-page-active");
+    document.body.classList.add("login-page-active");
+    return () => {
+      document.documentElement.classList.remove("login-page-active");
+      document.body.classList.remove("login-page-active");
+    };
+  }, []);
+
+  // Footer height so we can center the form in the area above it (even top/bottom margins)
+  const FOOTER_HEIGHT_PX = 60;
+
   // Theme colors
   const theme = {
     primary: "#0C8A3B",
@@ -125,12 +138,18 @@ export default function Login() {
   return (
     <div
       id="login-page"
-      className="min-vh-100 d-flex flex-column position-relative"
+      className="d-flex flex-column position-relative login-page-root"
       style={{
-        padding: "20px",
-        paddingBottom: "0",
+        height: "100vh",
+        height: "100dvh",
+        maxHeight: "-webkit-fill-available",
+        overflow: "hidden",
+        boxSizing: "border-box",
+        paddingLeft: "20px",
+        paddingRight: "20px",
+        paddingTop: "0",
+        paddingBottom: FOOTER_HEIGHT_PX,
         zIndex: 1,
-        position: "relative",
       }}
     >
       {/* Loading overlay - dark backdrop when submitting (matches other modals) */}
@@ -146,7 +165,7 @@ export default function Login() {
         />
       )}
 
-      {/* Background Image */}
+      {/* Background Image - inset avoids 100vw horizontal scrollbar */}
       <div
         className="position-fixed"
         style={{
@@ -154,8 +173,6 @@ export default function Login() {
           left: 0,
           right: 0,
           bottom: 0,
-          width: "100vw",
-          height: "100vh",
           backgroundImage: `url(${LoginBackground})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
@@ -166,10 +183,10 @@ export default function Login() {
         }}
       />
 
-      {/* Main Content - Centered */}
+      {/* Main Content - Centered in area above footer so top and bottom margins look even */}
       <div
-        className="flex-grow-1 d-flex align-items-center justify-content-center position-relative"
-        style={{ zIndex: 2, paddingBottom: "60px", position: "relative" }}
+        className="flex-grow-1 d-flex align-items-center justify-content-center position-relative min-height-0"
+        style={{ zIndex: 2 }}
       >
         {/* Form Content - Always Clear */}
         <div
@@ -411,7 +428,11 @@ export default function Login() {
             {brandingLoading ? (
               <span
                 className="branding-skeleton-login d-inline-block align-baseline"
-                style={{ width: "90px", height: "1em", verticalAlign: "middle" }}
+                style={{
+                  width: "90px",
+                  height: "1em",
+                  verticalAlign: "middle",
+                }}
                 aria-hidden
               />
             ) : (

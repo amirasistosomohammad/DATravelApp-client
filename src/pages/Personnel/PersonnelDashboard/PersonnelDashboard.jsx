@@ -45,11 +45,17 @@ const formatFullNumber = (amount) =>
     maximumFractionDigits: 2,
   });
 
+const API_BASE_URL =
+  import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api";
+const RECENT_ORDERS_LIMIT = 5;
+
 const PersonnelDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [travelOrders, setTravelOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
   const [numberModal, setNumberModal] = useState({
     show: false,
     title: "",
@@ -61,56 +67,59 @@ const PersonnelDashboard = () => {
     return () => clearTimeout(t);
   }, []);
 
-  // Dummy data
-  const stats = {
-    total: 12,
-    pending: 5,
-    approved: 6,
-    rejected: 1,
-  };
+  const fetchTravelOrders = React.useCallback(async () => {
+    if (user?.role !== "personnel") {
+      setOrdersLoading(false);
+      return;
+    }
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setOrdersLoading(false);
+      return;
+    }
+    setOrdersLoading(true);
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/personnel/travel-orders?per_page=100`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+      const data = await response.json();
+      if (response.ok && data?.data?.items) {
+        setTravelOrders(data.data.items);
+      } else {
+        setTravelOrders([]);
+      }
+    } catch {
+      setTravelOrders([]);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, [user?.role]);
 
-  const recentTravelOrders = [
-    {
-      id: 1,
-      travelPurpose: "Attend Training Workshop",
-      destination: "Manila",
-      startDate: "2026-02-15",
-      endDate: "2026-02-18",
-      status: "pending",
-      approver: "Director Maria Melba B. Wee",
-      submittedAt: "2026-01-20",
-    },
-    {
-      id: 2,
-      travelPurpose: "Regional Meeting",
-      destination: "Cebu",
-      startDate: "2026-02-10",
-      endDate: "2026-02-12",
-      status: "approved",
-      approver: "Director Vener L. Dilig",
-      submittedAt: "2026-01-18",
-    },
-    {
-      id: 3,
-      travelPurpose: "Field Inspection",
-      destination: "Zamboanga City",
-      startDate: "2026-02-05",
-      endDate: "2026-02-07",
-      status: "approved",
-      approver: "Director Maria Gemma S. Genaldo",
-      submittedAt: "2026-01-15",
-    },
-    {
-      id: 4,
-      travelPurpose: "Seminar Attendance",
-      destination: "Davao",
-      startDate: "2026-02-20",
-      endDate: "2026-02-22",
-      status: "pending",
-      approver: "Director Maria Melba B. Wee",
-      submittedAt: "2026-01-22",
-    },
-  ];
+  useEffect(() => {
+    fetchTravelOrders();
+  }, [fetchTravelOrders]);
+
+  const stats = React.useMemo(
+    () => ({
+      total: travelOrders.length,
+      draft: travelOrders.filter((o) => o.status === "draft").length,
+      pending: travelOrders.filter((o) => o.status === "pending").length,
+      approved: travelOrders.filter((o) => o.status === "approved").length,
+      rejected: travelOrders.filter((o) => o.status === "rejected").length,
+    }),
+    [travelOrders]
+  );
+
+  const recentTravelOrders = React.useMemo(
+    () => travelOrders.slice(0, RECENT_ORDERS_LIMIT),
+    [travelOrders]
+  );
 
   const quickActions = useMemo(
     () => [
@@ -191,14 +200,18 @@ const PersonnelDashboard = () => {
   const handleRefresh = async () => {
     if (refreshing) return;
     setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-      toast.success("Dashboard refreshed");
-    }, 700);
+    await fetchTravelOrders();
+    setRefreshing(false);
+    toast.success("Dashboard refreshed");
   };
 
   const getStatusBadge = (status) => {
     const styles = {
+      draft: {
+        backgroundColor: "rgba(108, 117, 125, 0.15)",
+        color: "#495057",
+        border: "1px solid rgba(108, 117, 125, 0.35)",
+      },
       pending: {
         backgroundColor: "rgba(255, 179, 0, 0.15)",
         color: "#856404",
@@ -225,7 +238,7 @@ const PersonnelDashboard = () => {
           borderRadius: "6px",
         }}
       >
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {status ? status.charAt(0).toUpperCase() + status.slice(1) : "—"}
       </span>
     );
   };
@@ -316,12 +329,39 @@ const PersonnelDashboard = () => {
                   <div
                     className="h4 fw-bold my-1"
                     style={{ cursor: "pointer", transition: "opacity 0.2s ease-in-out" }}
-                    title="Click to view full number"
                     onClick={() => handleNumberClick("Total Orders", stats.total)}
                     onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
                     onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
                   >
                     {abbreviateNumber(stats.total)}
+                  </div>
+                  <small className="text-white-50 d-block mt-1" style={{ fontSize: "0.7rem" }}>
+                    <i className="fas fa-info-circle me-1"></i>
+                    Click number to view full value
+                  </small>
+                </div>
+                <div className="rounded-circle bg-white bg-opacity-25 p-3">
+                  <FaFileAlt size={22} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-xl-3 col-md-6">
+          <div className="card bg-secondary text-white mb-3" style={{ borderRadius: "10px" }}>
+            <div className="card-body">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <div className="text-white-50 small">Drafts</div>
+                  <div
+                    className="h4 fw-bold my-1"
+                    style={{ cursor: "pointer", transition: "opacity 0.2s ease-in-out" }}
+                    onClick={() => handleNumberClick("Draft Orders", stats.draft)}
+                    onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
+                    onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+                  >
+                    {abbreviateNumber(stats.draft)}
                   </div>
                   <small className="text-white-50 d-block mt-1" style={{ fontSize: "0.7rem" }}>
                     <i className="fas fa-info-circle me-1"></i>
@@ -345,7 +385,6 @@ const PersonnelDashboard = () => {
                   <div
                     className="h4 fw-bold my-1"
                     style={{ cursor: "pointer", transition: "opacity 0.2s ease-in-out" }}
-                    title="Click to view full number"
                     onClick={() => handleNumberClick("Pending Orders", stats.pending)}
                     onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
                     onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
@@ -374,7 +413,6 @@ const PersonnelDashboard = () => {
                   <div
                     className="h4 fw-bold my-1"
                     style={{ cursor: "pointer", transition: "opacity 0.2s ease-in-out" }}
-                    title="Click to view full number"
                     onClick={() => handleNumberClick("Approved Orders", stats.approved)}
                     onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
                     onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
@@ -403,7 +441,6 @@ const PersonnelDashboard = () => {
                   <div
                     className="h4 fw-bold my-1"
                     style={{ cursor: "pointer", transition: "opacity 0.2s ease-in-out" }}
-                    title="Click to view full number"
                     onClick={() => handleNumberClick("Rejected Orders", stats.rejected)}
                     onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
                     onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
@@ -426,83 +463,109 @@ const PersonnelDashboard = () => {
 
       {/* Recent Travel Orders */}
       <div className="card mb-4" style={{ borderRadius: "10px" }}>
-        <div className="card-header bg-white border-bottom-0 py-3">
+        <div className="card-header bg-white border-bottom-0 py-3 d-flex justify-content-between align-items-center">
           <h5 className="card-title mb-0 text-dark d-flex align-items-center">
             <FaFileAlt className="me-2 text-primary" />
             Recent Travel Orders
           </h5>
+          <Link
+            to="/travel-orders"
+            className="btn btn-sm btn-outline-primary"
+            style={{ borderRadius: "6px" }}
+          >
+            View all
+          </Link>
         </div>
         <div className="card-body p-0">
-          <div className="table-responsive">
-            <table className="table table-striped table-hover mb-0">
-              <thead
-                style={{
-                  background: "var(--topbar-bg)",
-                  color: "var(--topbar-text)",
-                }}
-              >
-                <tr>
-                  <th className="small fw-semibold" style={{ paddingLeft: "1rem" }}>
-                    Travel Purpose
-                  </th>
-                  <th className="small fw-semibold">Destination</th>
-                  <th className="small fw-semibold">Dates</th>
-                  <th className="small fw-semibold">Approver</th>
-                  <th className="small fw-semibold">Status</th>
-                  <th className="small fw-semibold">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentTravelOrders.map((order) => (
-                  <tr key={order.id} className="align-middle">
-                    <td style={{ paddingLeft: "1rem" }}>{order.travelPurpose}</td>
-                    <td>{order.destination}</td>
-                    <td>
-                      {new Date(order.startDate).toLocaleDateString()} -{" "}
-                      {new Date(order.endDate).toLocaleDateString()}
-                    </td>
-                    <td
-                      style={{
-                        maxWidth: 260,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                      title={order.approver}
-                    >
-                      {order.approver}
-                    </td>
-                    <td>{getStatusBadge(order.status)}</td>
-                    <td>
-                      <Link
-                        to={`/travel-orders/${order.id}`}
-                        className="btn btn-sm"
-                        style={{
-                          backgroundColor: "transparent",
-                          color: "var(--primary-color)",
-                          border: "1px solid var(--primary-color)",
-                          borderRadius: "6px",
-                          padding: "0.375rem 0.75rem",
-                          fontSize: "0.8rem",
-                          transition: "all 0.2s ease",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = "var(--primary-color)";
-                          e.currentTarget.style.color = "#ffffff";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = "transparent";
-                          e.currentTarget.style.color = "var(--primary-color)";
-                        }}
-                      >
-                        View
-                      </Link>
-                    </td>
+          {ordersLoading ? (
+            <div className="text-center py-4">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <p className="mt-2 mb-0 small text-muted">Loading travel orders...</p>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-striped table-hover mb-0">
+                <thead
+                  style={{
+                    background: "var(--topbar-bg)",
+                    color: "var(--topbar-text)",
+                  }}
+                >
+                  <tr>
+                    <th className="small fw-semibold" style={{ paddingLeft: "1rem" }}>
+                      Travel Purpose
+                    </th>
+                    <th className="small fw-semibold">Destination</th>
+                    <th className="small fw-semibold">Dates</th>
+                    <th className="small fw-semibold">Status</th>
+                    <th className="small fw-semibold">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {recentTravelOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-4 text-muted">
+                        No travel orders yet.{" "}
+                        <Link to="/travel-orders/create">Create your first travel order</Link>
+                      </td>
+                    </tr>
+                  ) : (
+                    recentTravelOrders.map((order) => (
+                      <tr key={order.id} className="align-middle">
+                        <td style={{ paddingLeft: "1rem", maxWidth: 200 }} className="text-truncate" title={order.travel_purpose}>
+                          {order.travel_purpose}
+                        </td>
+                        <td>{order.destination || "—"}</td>
+                        <td>
+                          {order.start_date && order.end_date
+                            ? `${new Date(order.start_date).toLocaleDateString()} – ${new Date(order.end_date).toLocaleDateString()}`
+                            : "—"}
+                        </td>
+                        <td>{getStatusBadge(order.status)}</td>
+                        <td>
+                          {order.status === "draft" ? (
+                            <Link
+                              to={`/travel-orders/${order.id}/edit`}
+                              className="btn btn-sm"
+                              style={{
+                                backgroundColor: "#d97706",
+                                color: "#fff",
+                                border: "1px solid #d97706",
+                                borderRadius: "6px",
+                                padding: "0.375rem 0.75rem",
+                                fontSize: "0.8rem",
+                                transition: "all 0.2s ease",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = "#b45309";
+                                e.currentTarget.style.borderColor = "#b45309";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = "#d97706";
+                                e.currentTarget.style.borderColor = "#d97706";
+                              }}
+                            >
+                              Edit
+                            </Link>
+                          ) : (
+                            <Link
+                              to="/travel-orders"
+                              className="btn btn-sm btn-outline-primary"
+                              style={{ borderRadius: "6px", fontSize: "0.8rem" }}
+                            >
+                              View
+                            </Link>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 

@@ -929,6 +929,20 @@ const TimeLogging = () => {
                           color: "var(--primary-color)",
                           backgroundColor: "transparent",
                         }}
+                        onMouseEnter={(e) => {
+                          if (!e.target.disabled) {
+                            e.target.style.transform = "translateY(-1px)";
+                            e.target.style.boxShadow = "0 2px 4px rgba(0,0,0,0.1)";
+                            e.target.style.backgroundColor = "var(--primary-color)";
+                            e.target.style.color = "white";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.transform = "translateY(0)";
+                          e.target.style.boxShadow = "none";
+                          e.target.style.backgroundColor = "transparent";
+                          e.target.style.color = "var(--primary-color)";
+                        }}
                       >
                         <i className="fas fa-chevron-left me-1"></i>
                         Previous
@@ -998,6 +1012,20 @@ const TimeLogging = () => {
                           border: "2px solid var(--primary-color)",
                           color: "var(--primary-color)",
                           backgroundColor: "transparent",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!e.target.disabled) {
+                            e.target.style.transform = "translateY(-1px)";
+                            e.target.style.boxShadow = "0 2px 4px rgba(0,0,0,0.1)";
+                            e.target.style.backgroundColor = "var(--primary-color)";
+                            e.target.style.color = "white";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.transform = "translateY(0)";
+                          e.target.style.boxShadow = "none";
+                          e.target.style.backgroundColor = "transparent";
+                          e.target.style.color = "var(--primary-color)";
                         }}
                       >
                         Next

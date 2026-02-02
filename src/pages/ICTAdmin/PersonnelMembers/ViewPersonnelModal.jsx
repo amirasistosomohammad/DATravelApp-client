@@ -22,11 +22,13 @@ const ViewPersonnelModal = ({ personnel, onClose }) => {
   const getPersonnelAvatarUrl = (person) => {
     if (!person) return null;
     if (person.avatar_path) {
+      if (person.avatar_path.startsWith("http://") || person.avatar_path.startsWith("https://")) {
+        return person.avatar_path;
+      }
       const apiBase =
         (
           import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api"
         ).replace(/\/api\/?$/, "") + "/api";
-
       let cleanFilename = person.avatar_path;
       if (person.avatar_path.includes("personnel-avatars/")) {
         cleanFilename = person.avatar_path.replace("personnel-avatars/", "");

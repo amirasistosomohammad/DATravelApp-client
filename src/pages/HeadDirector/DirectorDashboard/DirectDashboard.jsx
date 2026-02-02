@@ -317,7 +317,6 @@ const DirectDashboard = () => {
                   <div
                     className="h4 fw-bold my-1"
                     style={{ cursor: "pointer", transition: "opacity 0.2s ease-in-out" }}
-                    title="Click to view full number"
                     onClick={() => handleNumberClick("Total Reviews", stats.total)}
                     onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
                     onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
@@ -346,7 +345,6 @@ const DirectDashboard = () => {
                   <div
                     className="h4 fw-bold my-1"
                     style={{ cursor: "pointer", transition: "opacity 0.2s ease-in-out" }}
-                    title="Click to view full number"
                     onClick={() => handleNumberClick("Pending Reviews", stats.pending)}
                     onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
                     onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
@@ -375,7 +373,6 @@ const DirectDashboard = () => {
                   <div
                     className="h4 fw-bold my-1"
                     style={{ cursor: "pointer", transition: "opacity 0.2s ease-in-out" }}
-                    title="Click to view full number"
                     onClick={() => handleNumberClick("Approved Reviews", stats.approved)}
                     onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
                     onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
@@ -404,7 +401,6 @@ const DirectDashboard = () => {
                   <div
                     className="h4 fw-bold my-1"
                     style={{ cursor: "pointer", transition: "opacity 0.2s ease-in-out" }}
-                    title="Click to view full number"
                     onClick={() => handleNumberClick("Rejected Reviews", stats.rejected)}
                     onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
                     onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}

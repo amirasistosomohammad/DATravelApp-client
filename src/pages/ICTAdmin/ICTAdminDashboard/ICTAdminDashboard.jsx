@@ -593,7 +593,6 @@ export default function ICTAdminDashboard() {
                       cursor: "pointer",
                       transition: "opacity 0.2s ease-in-out",
                     }}
-                    title="Click to view full number"
                     onClick={() =>
                       handleNumberClick(
                         "Total Users",
@@ -648,7 +647,6 @@ export default function ICTAdminDashboard() {
                       cursor: "pointer",
                       transition: "opacity 0.2s ease-in-out",
                     }}
-                    title="Click to view full number"
                     onClick={() =>
                       handleNumberClick(
                         "Pending Approvals",
@@ -704,7 +702,6 @@ export default function ICTAdminDashboard() {
                       cursor: "pointer",
                       transition: "opacity 0.2s ease-in-out",
                     }}
-                    title="Click to view full number"
                     onClick={() =>
                       handleNumberClick(
                         "Monthly Budget",
@@ -759,7 +756,6 @@ export default function ICTAdminDashboard() {
                       cursor: "pointer",
                       transition: "opacity 0.2s ease-in-out",
                     }}
-                    title="Click to view full number"
                     onClick={() =>
                       handleNumberClick(
                         "Flagged Accounts",
@@ -814,7 +810,6 @@ export default function ICTAdminDashboard() {
                       cursor: "pointer",
                       transition: "opacity 0.2s ease-in-out",
                     }}
-                    title="Click to view full number"
                     onClick={() =>
                       handleNumberClick(
                         "Active Sessions",
@@ -855,7 +850,6 @@ export default function ICTAdminDashboard() {
                       cursor: "pointer",
                       transition: "opacity 0.2s ease-in-out",
                     }}
-                    title="Click to view full number"
                     onClick={() =>
                       handleNumberClick(
                         "Monthly Records",
@@ -896,7 +890,6 @@ export default function ICTAdminDashboard() {
                       cursor: "pointer",
                       transition: "opacity 0.2s ease-in-out",
                     }}
-                    title="Click to view full number"
                     onClick={() =>
                       handleNumberClick(
                         "Staff Members",

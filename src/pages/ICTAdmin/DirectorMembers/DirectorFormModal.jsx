@@ -150,29 +150,23 @@ const DirectorFormModal = ({
 
   const resolveAvatarUrl = useCallback((entity) => {
     if (!entity) return "";
-
     if (entity.avatar_path) {
-      // Ensure API base URL ends with /api
+      if (entity.avatar_path.startsWith("http://") || entity.avatar_path.startsWith("https://")) {
+        return entity.avatar_path;
+      }
       const apiBase =
         (
           import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api"
         ).replace(/\/api\/?$/, "") + "/api";
-
       let cleanFilename = entity.avatar_path;
-
-      // Handle different path formats
       if (entity.avatar_path.includes("director-avatars/")) {
         cleanFilename = entity.avatar_path.replace("director-avatars/", "");
       } else if (entity.avatar_path.includes("avatars/")) {
         cleanFilename = entity.avatar_path.replace("avatars/", "");
       }
-
-      // Get just the filename
       cleanFilename = cleanFilename.split("/").pop();
-
       return `${apiBase}/director-avatar/${cleanFilename}`;
     }
-
     return "";
   }, []);
 
