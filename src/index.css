@@ -531,12 +531,12 @@ body.sb-sidenav-toggled #layoutSidenav #layoutSidenav_content {
   min-height: calc(100vh - 60px);
 }
 
-/* Main content area - even vertical spacing for all pages */
+/* Main content area - top margin/padding so content is never flush with topbar */
 main {
   flex: 1 0 auto;
   margin-top: 0;
   margin-bottom: 0;
-  padding-top: 2.25rem;
+  padding-top: 3.5rem !important;
   padding-bottom: 0.75rem;
   overflow: visible;
 }
@@ -549,7 +549,7 @@ main {
 
 /* Extra top spacing for page content (all components inside main) */
 main > .container-fluid {
-  padding-top: 1rem;
+  padding-top: 1.5rem !important;
   padding-bottom: 0.25rem;
 }
 
@@ -791,7 +791,7 @@ body {
 #layoutSidenav_content main {
   margin-top: 0;
   margin-bottom: 0;
-  padding-top: 2.25rem;
+  padding-top: 3.5rem !important;
   padding-bottom: 0.75rem;
 }
 
