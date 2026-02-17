@@ -1,16 +1,41 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FaFileAlt, FaPlus, FaSyncAlt, FaEdit, FaTrash, FaPaperPlane } from "react-icons/fa";
+import { FaFileAlt, FaPlus, FaSyncAlt, FaEdit, FaTrash, FaPaperPlane, FaSearch, FaListOl, FaTimes, FaEraser, FaChevronLeft, FaChevronRight, FaAngleDoubleLeft, FaAngleDoubleRight, FaEye } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { useAuth } from "../../../contexts/AuthContext";
 import LoadingSpinner from "../../../components/admin/LoadingSpinner";
 import { showAlert } from "../../../services/notificationService";
+import NumberViewModal from "../../../components/NumberViewModal";
 import SubmitTravelOrderModal from "./SubmitTravelOrderModal";
+import EditTravelOrderModal from "./EditTravelOrderModal";
+import ViewTravelOrderModal from "./ViewTravelOrderModal";
+
+const formatFullNumber = (num) =>
+  Number(num ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 const API_BASE_URL =
   import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api";
 
 const DEFAULT_PAGE_SIZE = 10;
+const LOAD_ALL_PAGE_SIZE = 500;
+const PAGE_SIZE_OPTIONS = [5, 10, 25, 50];
+
+/** Build page number list for pagination, e.g. [1, "...", 4, 5, 6, "...", 10] */
+const getPageNumbers = (current, lastPage) => {
+  if (lastPage <= 7) {
+    return Array.from({ length: lastPage }, (_, i) => i + 1);
+  }
+  const pages = new Set([1, lastPage, current, current - 1, current - 2, current + 1, current + 2]);
+  const sorted = [...pages].filter((p) => p >= 1 && p <= lastPage).sort((a, b) => a - b);
+  const result = [];
+  let prev = 0;
+  for (const p of sorted) {
+    if (p - prev > 1) result.push("…");
+    result.push(p);
+    prev = p;
+  }
+  return result;
+};
 
 const TravelOrdersList = () => {
   const { user } = useAuth();
@@ -25,90 +50,95 @@ const TravelOrdersList = () => {
 
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState([]);
-  const [pagination, setPagination] = useState({
-    current_page: 1,
-    last_page: 1,
-    total: 0,
-    from: 0,
-    to: 0,
-    per_page: DEFAULT_PAGE_SIZE,
-  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
   const [actionLoading, setActionLoading] = useState(null);
   const [submitModalOrder, setSubmitModalOrder] = useState(null);
+  const [editModalOrderId, setEditModalOrderId] = useState(null);
+  const [viewModalOrderId, setViewModalOrderId] = useState(null);
+  const [numberModal, setNumberModal] = useState({ show: false, title: "", value: "" });
 
-  const fetchOrders = useCallback(
-    async (page = 1) => {
-      if (!token) {
-        toast.error("Authentication token missing. Please login again.");
-        return;
-      }
-      setLoading(true);
-      try {
-        const params = new URLSearchParams();
-        params.set("per_page", DEFAULT_PAGE_SIZE);
-        params.set("page", String(page));
-        if (filterStatus && filterStatus !== "all") {
-          params.set("status", filterStatus);
+  const fetchOrders = useCallback(async () => {
+    if (!token) {
+      toast.error("Authentication token missing. Please login again.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("per_page", String(LOAD_ALL_PAGE_SIZE));
+      params.set("page", "1");
+      const response = await fetch(
+        `${API_BASE_URL}/personnel/travel-orders?${params.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
         }
-        const response = await fetch(
-          `${API_BASE_URL}/personnel/travel-orders?${params.toString()}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              Accept: "application/json",
-            },
-          }
-        );
-        const data = await response.json();
-        if (!response.ok) {
-          throw data?.message || data?.errors || "Failed to load travel orders";
-        }
-        const items = data?.data?.items ?? [];
-        const pag = data?.data?.pagination ?? {};
-        setOrders(items);
-        setPagination({
-          current_page: pag.current_page ?? 1,
-          last_page: pag.last_page ?? 1,
-          total: pag.total ?? 0,
-          from: pag.from ?? 0,
-          to: pag.to ?? 0,
-          per_page: pag.per_page ?? DEFAULT_PAGE_SIZE,
-        });
-      } catch (err) {
-        const msg =
-          typeof err === "string"
-            ? err
-            : err?.message || "Failed to load travel orders";
-        toast.error(msg);
-        setOrders([]);
-      } finally {
-        setLoading(false);
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw data?.message || data?.errors || "Failed to load travel orders";
       }
-    },
-    [token, filterStatus]
-  );
+      const items = data?.data?.items ?? [];
+      setOrders(Array.isArray(items) ? items : []);
+    } catch (err) {
+      const msg =
+        typeof err === "string"
+          ? err
+          : err?.message || "Failed to load travel orders";
+      toast.error(msg);
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
 
   useEffect(() => {
     if (user?.role === "personnel") {
-      fetchOrders(1);
+      fetchOrders();
     }
-  }, [filterStatus, user?.role, fetchOrders]);
+  }, [user?.role, fetchOrders]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterDateFrom, filterDateTo, filterStatus]);
 
   const handleRefresh = () => {
-    fetchOrders(pagination.current_page);
+    fetchOrders();
     toast.success("List refreshed");
   };
 
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
+    setFilterStatus("all");
+    setCurrentPage(1);
+    toast.success("Filters cleared");
+  };
+
   const handlePageChange = (page) => {
-    if (page < 1 || page > pagination.last_page) return;
-    fetchOrders(page);
+    if (page < 1 || page > lastPage) return;
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (e) => {
+    const value = Number(e.target.value);
+    if (PAGE_SIZE_OPTIONS.includes(value)) {
+      setPageSize(value);
+      setCurrentPage(1);
+    }
   };
 
   const handleSubmitSuccess = () => {
     toast.success("Travel order submitted for approval.");
-    fetchOrders(pagination.current_page);
+    fetchOrders();
     setSubmitModalOrder(null);
   };
 
@@ -117,17 +147,16 @@ const TravelOrdersList = () => {
       toast.error("Only draft travel orders can be deleted.");
       return;
     }
-    const result = await showAlert({
-      title: "Delete Travel Order?",
-      text: `This will permanently delete the travel order for "${order.travel_purpose}".`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Yes, delete",
-      confirmButtonColor: "#dc3545",
-    });
+    const result = await showAlert.confirm(
+      "Delete Travel Order?",
+      `This will permanently delete the travel order for "${order.travel_purpose}".`,
+      "Yes, delete",
+      "Cancel"
+    );
     if (!result?.isConfirmed) return;
 
     setActionLoading(order.id);
+    showAlert.loadingWithOverlay("Deleting travel order...");
     try {
       const response = await fetch(
         `${API_BASE_URL}/personnel/travel-orders/${order.id}`,
@@ -144,10 +173,11 @@ const TravelOrdersList = () => {
         throw data?.message || "Failed to delete";
       }
       toast.success("Travel order deleted.");
-      fetchOrders(pagination.current_page);
+      fetchOrders();
     } catch (err) {
       toast.error(err?.message || "Failed to delete travel order");
     } finally {
+      showAlert.close();
       setActionLoading(null);
     }
   };
@@ -199,7 +229,7 @@ const TravelOrdersList = () => {
     }
   };
 
-  const filteredOrders = searchTerm.trim()
+  const filteredBySearch = searchTerm.trim()
     ? orders.filter((o) => {
         const term = searchTerm.toLowerCase();
         return (
@@ -209,13 +239,53 @@ const TravelOrdersList = () => {
       })
     : orders;
 
-  const stats = {
-    total: pagination.total,
-    draft: orders.filter((o) => o.status === "draft").length,
-    pending: orders.filter((o) => o.status === "pending").length,
-    approved: orders.filter((o) => o.status === "approved").length,
-    rejected: orders.filter((o) => o.status === "rejected").length,
+  const filteredByDate = (filterDateFrom || filterDateTo)
+    ? filteredBySearch.filter((o) => {
+        const start = (o.start_date || "").slice(0, 10);
+        const end = (o.end_date || "").slice(0, 10);
+        if (filterDateFrom && end < filterDateFrom) return false;
+        if (filterDateTo && start > filterDateTo) return false;
+        return true;
+      })
+    : filteredBySearch;
+
+  const filteredOrders =
+    filterStatus && filterStatus !== "all"
+      ? filteredByDate.filter((o) => o.status === filterStatus)
+      : filteredByDate;
+
+  const total = filteredOrders.length;
+  const lastPage = Math.max(1, Math.ceil(total / pageSize));
+  const from = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const to = Math.min(currentPage * pageSize, total);
+  const pageItems = filteredOrders.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  useEffect(() => {
+    if (currentPage > lastPage && lastPage >= 1) {
+      setCurrentPage(lastPage);
+    }
+  }, [total, pageSize, currentPage, lastPage]);
+
+  const handleNumberClick = (title, value) => {
+    setNumberModal({ show: true, title, value: formatFullNumber(value) });
   };
+
+  const stats = {
+    total,
+    draft: filteredOrders.filter((o) => o.status === "draft").length,
+    pending: filteredOrders.filter((o) => o.status === "pending").length,
+    approved: filteredOrders.filter((o) => o.status === "approved").length,
+    rejected: filteredOrders.filter((o) => o.status === "rejected").length,
+  };
+
+  const hasActiveFilters =
+    searchTerm.trim() !== "" ||
+    filterDateFrom !== "" ||
+    filterDateTo !== "" ||
+    (filterStatus && filterStatus !== "all");
 
   const btnBase = {
     transition: "all 0.2s ease-in-out",
@@ -253,6 +323,170 @@ const TravelOrdersList = () => {
         .travel-orders-list-container .btn-outline-hover:hover:not(:disabled) {
           background-color: var(--primary-color);
           color: white !important;
+        }
+        .travel-orders-stats-card {
+          background: linear-gradient(135deg, rgba(13,122,58,0.04), rgba(13,122,58,0.08));
+          border: 1px solid rgba(13,122,58,0.15);
+          border-radius: 0.5rem;
+          box-shadow: 0 2px 8px rgba(15,23,42,0.06);
+          transition: box-shadow 0.2s ease;
+        }
+        .travel-orders-stats-card:hover {
+          box-shadow: 0 4px 12px rgba(15,23,42,0.08);
+        }
+        .travel-orders-stat-item {
+          padding: 0.85rem 1rem;
+          border-right: 1px solid rgba(13,122,58,0.12);
+        }
+        .travel-orders-stat-item:last-child {
+          border-right: none;
+        }
+        .travel-orders-stat-icon {
+          width: 2.25rem;
+          height: 2.25rem;
+          border-radius: 0.5rem;
+          background: rgba(13,122,58,0.12);
+          color: var(--primary-color);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.9rem;
+        }
+        .travel-orders-filters-card .card-header {
+          background: linear-gradient(135deg, rgba(13,122,58,0.05), rgba(13,122,58,0.1));
+          border-bottom: 1px solid rgba(13,122,58,0.12);
+          color: var(--text-primary);
+          font-weight: 600;
+          font-size: 0.9rem;
+          padding: 0.6rem 1rem;
+          border-radius: 0.5rem 0.5rem 0 0;
+        }
+        .travel-orders-filters-card .card-body {
+          padding: 1rem;
+        }
+        .travel-orders-clear-filters-btn:hover:not(:disabled) {
+          background-color: rgba(13,122,58,0.08);
+          border-color: var(--primary-color);
+          color: var(--primary-color);
+        }
+        .travel-orders-search-wrap .form-control {
+          border-radius: 0.375rem;
+          border-color: rgba(0,0,0,0.15);
+        }
+        .travel-orders-search-wrap .form-control:focus {
+          border-color: var(--primary-color);
+          box-shadow: 0 0 0 0.2rem rgba(13,122,58,0.15);
+        }
+        .travel-orders-search-wrap .input-group-text {
+          background: var(--background-light);
+          border-color: rgba(0,0,0,0.15);
+          border-radius: 0.375rem 0 0 0.375rem;
+          color: var(--text-muted);
+        }
+        .travel-orders-search-clear {
+          background: var(--background-light);
+          border: 1px solid rgba(0,0,0,0.15);
+          border-left: 0;
+          border-radius: 0 0.375rem 0.375rem 0;
+          color: var(--text-muted);
+          padding: 0.25rem 0.5rem;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          transition: color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+        }
+        .travel-orders-search-clear:hover {
+          color: var(--primary-color);
+          background: rgba(13,122,58,0.08);
+          transform: scale(1.05);
+        }
+        .travel-orders-stat-number {
+          cursor: pointer;
+          transition: opacity 0.2s ease, color 0.2s ease;
+        }
+        .travel-orders-stat-number:hover {
+          opacity: 0.85;
+          color: var(--primary-color) !important;
+        }
+        @media (max-width: 767.98px) {
+          .travel-orders-stat-item {
+            border-right: none;
+            border-bottom: 1px solid rgba(13,122,58,0.12);
+          }
+          .travel-orders-stat-item:last-child {
+            border-bottom: none;
+          }
+        }
+        .travel-orders-table-wrap {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        .travel-orders-table {
+          border-collapse: collapse;
+        }
+        .travel-orders-table thead th {
+          white-space: nowrap;
+          vertical-align: middle;
+        }
+        .travel-orders-table tbody td {
+          vertical-align: middle;
+        }
+        .travel-orders-table .travel-orders-col-no {
+          width: 2.5rem;
+          min-width: 2.5rem;
+        }
+        .travel-orders-table .travel-orders-col-actions {
+          white-space: nowrap;
+        }
+        .travel-orders-table .travel-orders-col-purpose {
+          white-space: nowrap;
+          max-width: 200px;
+        }
+        .travel-orders-table .travel-orders-col-purpose .travel-orders-purpose-text {
+          max-width: 100%;
+          display: inline-block;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          vertical-align: middle;
+        }
+        .travel-orders-table .travel-orders-col-destination {
+          white-space: nowrap;
+          max-width: 140px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .travel-orders-table .travel-orders-col-dates {
+          white-space: nowrap;
+          min-width: 11rem;
+        }
+        @media (max-width: 767.98px) {
+          .travel-orders-table .travel-orders-col-no {
+            position: sticky;
+            left: 0;
+            z-index: 1;
+            background: var(--bs-body-bg, #fff);
+            box-shadow: 2px 0 4px rgba(0,0,0,0.06);
+          }
+          .travel-orders-table thead .travel-orders-col-no {
+            background: var(--background-light) !important;
+          }
+          .travel-orders-table tbody tr:hover .travel-orders-col-no {
+            background: rgba(0,0,0,0.04);
+          }
+          .travel-orders-table .travel-orders-col-actions {
+            position: sticky;
+            left: 2.5rem;
+            z-index: 1;
+            background: var(--bs-body-bg, #fff);
+            box-shadow: 2px 0 4px rgba(0,0,0,0.06);
+          }
+          .travel-orders-table thead .travel-orders-col-actions {
+            background: var(--background-light) !important;
+          }
+          .travel-orders-table tbody tr:hover .travel-orders-col-actions {
+            background: rgba(0,0,0,0.04);
+          }
         }
       `}</style>
 
@@ -310,55 +544,138 @@ const TravelOrdersList = () => {
       </div>
 
       {/* Stats */}
-      <div className="row g-3 mb-4">
-        <div className="col-6 col-md">
-          <div
-            className="card stats-card h-100 shadow-sm"
-            style={{
-              border: "1px solid rgba(0, 0, 0, 0.125)",
-              borderRadius: "0.375rem",
-            }}
-          >
-            <div className="card-body p-2 p-md-3">
-              <div className="text-xs fw-semibold text-uppercase mb-1" style={{ color: "var(--primary-color)" }}>
-                Total
+      <div className="card travel-orders-stats-card mb-4">
+        <div className="card-body p-0 d-flex flex-column flex-md-row">
+          <div className="travel-orders-stat-item d-flex align-items-center gap-3 flex-grow-1">
+            <div className="travel-orders-stat-icon flex-shrink-0">
+              <FaListOl />
+            </div>
+            <div className="flex-grow-1">
+              <div className="small text-uppercase fw-semibold mb-0" style={{ color: "var(--text-muted)", letterSpacing: "0.02em" }}>
+                Total orders
               </div>
-              <div className="mb-0 fw-bold" style={{ color: "var(--text-primary)" }}>
-                {pagination.total}
+              <div
+                className="fs-4 fw-bold mb-0 travel-orders-stat-number"
+                style={{ color: "var(--text-primary)" }}
+                onClick={() => handleNumberClick("Total orders", stats.total)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === "Enter" && handleNumberClick("Total orders", stats.total)}
+                aria-label="Click to view full number"
+                title="Click to view full number"
+              >
+                {stats.total}
               </div>
+              <small className="text-muted" style={{ fontSize: "0.7rem" }}>
+                Click to view full number
+              </small>
             </div>
           </div>
-        </div>
-        <div className="col-6 col-md">
-          <div className="card stats-card h-100 shadow-sm" style={{ border: "1px solid rgba(0, 0, 0, 0.125)", borderRadius: "0.375rem" }}>
-            <div className="card-body p-2 p-md-3">
-              <div className="text-xs fw-semibold text-uppercase mb-1" style={{ color: "var(--primary-color)" }}>Drafts</div>
-              <div className="mb-0 fw-bold" style={{ color: "var(--text-primary)" }}>{stats.draft}</div>
+          <div className="travel-orders-stat-item d-flex align-items-center gap-3 flex-grow-1">
+            <div className="travel-orders-stat-icon flex-shrink-0">
+              <FaFileAlt />
+            </div>
+            <div className="flex-grow-1">
+              <div className="small text-uppercase fw-semibold mb-0" style={{ color: "var(--text-muted)", letterSpacing: "0.02em" }}>
+                Drafts
+              </div>
+              <div
+                className="fs-4 fw-bold mb-0 travel-orders-stat-number"
+                style={{ color: "var(--text-primary)" }}
+                onClick={() => handleNumberClick("Drafts", stats.draft)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === "Enter" && handleNumberClick("Drafts", stats.draft)}
+                aria-label="Click to view full number"
+                title="Click to view full number"
+              >
+                {stats.draft}
+              </div>
+              <small className="text-muted" style={{ fontSize: "0.7rem" }}>
+                Click to view full number
+              </small>
             </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="card shadow-sm mb-3" style={{ borderRadius: "0.375rem" }}>
-        <div className="card-body py-2">
-          <div className="row g-2 align-items-center">
-            <div className="col-12 col-md-4">
+      <div className="card travel-orders-filters-card shadow-sm mb-3" style={{ borderRadius: "0.5rem", border: "1px solid rgba(13,122,58,0.12)" }}>
+        <div className="card-header d-flex align-items-center gap-2 py-2 px-3">
+          <FaSearch style={{ fontSize: "0.85rem", color: "var(--primary-color)" }} />
+          <span className="fw-semibold" style={{ color: "var(--text-primary)", fontSize: "0.9rem" }}>Filters</span>
+          {hasActiveFilters && (
+            <span className="badge rounded-pill bg-primary opacity-75" style={{ fontSize: "0.65rem" }}>Active</span>
+          )}
+        </div>
+        <div className="card-body pt-2 pb-3 px-3">
+          <div className="row g-3 align-items-end">
+            <div className="col-12 col-sm-6 col-lg-3">
+              <label className="form-label small fw-semibold mb-1" style={{ color: "var(--text-primary)" }}>
+                Search
+              </label>
+              <div className="input-group input-group-sm travel-orders-search-wrap">
+                <span className="input-group-text">
+                  <FaSearch style={{ fontSize: "0.75rem", color: "var(--text-muted)" }} />
+                </span>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Purpose or destination..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  aria-label="Search purpose or destination"
+                />
+                {searchTerm.length > 0 && (
+                  <button
+                    type="button"
+                    className="travel-orders-search-clear"
+                    onClick={() => setSearchTerm("")}
+                    aria-label="Clear search"
+                    title="Clear search"
+                  >
+                    <FaTimes style={{ fontSize: "0.8rem" }} />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="col-12 col-sm-6 col-lg-2">
+              <label className="form-label small fw-semibold mb-1" style={{ color: "var(--text-primary)" }}>
+                Travel date from
+              </label>
               <input
-                type="text"
+                type="date"
                 className="form-control form-control-sm"
-                placeholder="Search purpose or destination..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ borderRadius: "4px" }}
+                value={filterDateFrom}
+                onChange={(e) => setFilterDateFrom(e.target.value)}
+                style={{ borderRadius: "0.375rem", borderColor: "rgba(0,0,0,0.15)" }}
+                aria-label="Filter by travel start date"
               />
             </div>
-            <div className="col-12 col-md-4">
+            <div className="col-12 col-sm-6 col-lg-2">
+              <label className="form-label small fw-semibold mb-1" style={{ color: "var(--text-primary)" }}>
+                Travel date to
+              </label>
+              <input
+                type="date"
+                className="form-control form-control-sm"
+                value={filterDateTo}
+                onChange={(e) => setFilterDateTo(e.target.value)}
+                min={filterDateFrom || undefined}
+                style={{ borderRadius: "0.375rem", borderColor: "rgba(0,0,0,0.15)" }}
+                aria-label="Filter by travel end date"
+              />
+            </div>
+            <div className="col-12 col-sm-6 col-lg-2">
+              <label className="form-label small fw-semibold mb-1" style={{ color: "var(--text-primary)" }}>
+                Status
+              </label>
               <select
                 className="form-select form-select-sm"
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                style={{ borderRadius: "4px" }}
+                style={{ borderRadius: "0.375rem", borderColor: "rgba(0,0,0,0.15)" }}
+                aria-label="Filter by status"
               >
                 <option value="all">All statuses</option>
                 <option value="draft">Draft</option>
@@ -366,6 +683,23 @@ const TravelOrdersList = () => {
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
               </select>
+            </div>
+            <div className="col-12 col-sm-6 col-lg-2 d-flex align-items-end">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary travel-orders-clear-filters-btn w-100 d-flex align-items-center justify-content-center gap-1"
+                onClick={handleClearFilters}
+                disabled={!hasActiveFilters}
+                title="Clear all filters"
+                aria-label="Clear all filters"
+                style={{
+                  borderRadius: "0.375rem",
+                  transition: "color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease",
+                }}
+              >
+                <FaEraser style={{ fontSize: "0.75rem" }} />
+                Clear filters
+              </button>
             </div>
           </div>
         </div>
@@ -377,104 +711,191 @@ const TravelOrdersList = () => {
           {filteredOrders.length === 0 ? (
             <div className="text-center py-5" style={{ color: "var(--text-muted)" }}>
               <FaFileAlt className="mb-2" style={{ fontSize: "2rem" }} />
-              <p className="mb-2">No travel orders found.</p>
-              <Link to="/travel-orders/create" className="btn btn-sm" style={btnPrimary}>
-                <FaPlus className="me-1" /> Create your first travel order
-              </Link>
+              {orders.length === 0 ? (
+                <>
+                  <p className="mb-2">No travel orders found.</p>
+                  <Link to="/travel-orders/create" className="btn btn-sm" style={btnPrimary}>
+                    <FaPlus className="me-1" /> Create your first travel order
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <p className="mb-2">No travel orders match your search or filters.</p>
+                  <p className="small mb-3">Try clearing the search or adjusting filters to see your orders.</p>
+                  <button type="button" className="btn btn-sm" style={btnOutline} onClick={handleClearFilters}>
+                    <FaEraser className="me-1" /> Clear filters
+                  </button>
+                </>
+              )}
             </div>
           ) : (
-            <div className="table-responsive">
-              <table className="table table-hover mb-0">
+            <div className="table-responsive travel-orders-table-wrap">
+              <table className="table table-hover mb-0 travel-orders-table">
                 <thead style={{ backgroundColor: "var(--background-light)" }}>
                   <tr>
-                    <th className="border-0 py-2 px-3 small fw-semibold" style={{ color: "var(--text-primary)" }}>Purpose</th>
-                    <th className="border-0 py-2 px-3 small fw-semibold" style={{ color: "var(--text-primary)" }}>Destination</th>
-                    <th className="border-0 py-2 px-3 small fw-semibold" style={{ color: "var(--text-primary)" }}>Dates</th>
-                    <th className="border-0 py-2 px-3 small fw-semibold" style={{ color: "var(--text-primary)" }}>Status</th>
-                    <th className="border-0 py-2 px-3 small fw-semibold text-end" style={{ color: "var(--text-primary)" }}>Actions</th>
+                    <th className="border-0 py-2 px-2 px-md-3 small fw-semibold text-center travel-orders-col-no" style={{ color: "var(--text-primary)", minWidth: "2.5rem" }}>#</th>
+                    <th className="border-0 py-2 px-2 px-md-3 small fw-semibold text-center travel-orders-col-actions" style={{ color: "var(--text-primary)" }}>Actions</th>
+                    <th className="border-0 py-2 px-2 px-md-3 small fw-semibold text-start travel-orders-col-purpose" style={{ color: "var(--text-primary)" }}>Purpose</th>
+                    <th className="border-0 py-2 px-2 px-md-3 small fw-semibold text-start travel-orders-col-destination" style={{ color: "var(--text-primary)" }}>Destination</th>
+                    <th className="border-0 py-2 px-2 px-md-3 small fw-semibold text-start travel-orders-col-dates" style={{ color: "var(--text-primary)" }}>Dates</th>
+                    <th className="border-0 py-2 px-2 px-md-3 small fw-semibold text-center" style={{ color: "var(--text-primary)" }}>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredOrders.map((order) => (
-                    <tr key={order.id}>
-                      <td className="py-2 px-3 small" style={{ color: "var(--text-primary)", maxWidth: "200px" }} title={order.travel_purpose}>
-                        <span className="text-truncate d-inline-block" style={{ maxWidth: "200px" }}>{order.travel_purpose}</span>
-                      </td>
-                      <td className="py-2 px-3 small" style={{ color: "var(--text-primary)" }}>{order.destination || "—"}</td>
-                      <td className="py-2 px-3 small" style={{ color: "var(--text-muted)" }}>
-                        {formatDate(order.start_date)} – {formatDate(order.end_date)}
-                      </td>
-                      <td className="py-2 px-3">{getStatusBadge(order.status)}</td>
-                      <td className="py-2 px-3 text-end">
-                        {order.status === "draft" && (
-                          <>
-                            <button
-                              type="button"
-                              className="btn btn-sm me-1"
-                              style={{ backgroundColor: "var(--primary-color)", borderColor: "var(--primary-color)", color: "#fff", width: "32px", height: "32px", borderRadius: "50%", padding: 0 }}
-                              title="Submit"
-                              onClick={() => setSubmitModalOrder(order)}
-                              disabled={actionLoading === order.id}
-                            >
-                              <FaPaperPlane style={{ fontSize: "0.75rem" }} />
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-sm me-1"
-                              style={{ backgroundColor: "#d97706", borderColor: "#d97706", color: "#fff", width: "32px", height: "32px", borderRadius: "50%", padding: 0 }}
-                              title="Edit"
-                              onClick={() => navigate(`/travel-orders/${order.id}/edit`)}
-                              disabled={actionLoading === order.id}
-                            >
-                              {actionLoading === order.id ? <span className="spinner-border spinner-border-sm" /> : <FaEdit />}
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-sm"
-                              style={{ backgroundColor: "#dc3545", borderColor: "#dc3545", color: "#fff", width: "32px", height: "32px", borderRadius: "50%", padding: 0 }}
-                              title="Delete"
-                              onClick={() => handleDelete(order)}
-                              disabled={actionLoading === order.id}
-                            >
-                              <FaTrash />
-                            </button>
-                          </>
-                        )}
-                        {order.status !== "draft" && (
-                          <span className="small text-muted">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {pageItems.map((order, index) => {
+                    const rowNum = (currentPage - 1) * pageSize + index + 1;
+                    return (
+                      <tr key={order.id}>
+                        <td className="py-2 px-2 px-md-3 small text-center travel-orders-col-no" style={{ color: "var(--text-muted)", fontWeight: 800 }}>{rowNum}</td>
+                        <td className="py-2 px-2 px-md-3 text-center travel-orders-col-actions">
+                          <button
+                            type="button"
+                            className="btn btn-sm me-1 travel-orders-action-btn"
+                            style={{ backgroundColor: "#1e3a5f", borderColor: "#1e3a5f", color: "#fff", width: "32px", height: "32px", borderRadius: "50%", padding: 0 }}
+                            title="View details"
+                            onClick={() => setViewModalOrderId(order.id)}
+                            disabled={actionLoading === order.id}
+                          >
+                            <FaEye style={{ fontSize: "0.75rem" }} />
+                          </button>
+                          {order.status === "draft" && (
+                            <>
+                              <button
+                                type="button"
+                                className="btn btn-sm me-1 travel-orders-action-btn"
+                                style={{ backgroundColor: "var(--primary-color)", borderColor: "var(--primary-color)", color: "#fff", width: "32px", height: "32px", borderRadius: "50%", padding: 0 }}
+                                title="Submit"
+                                onClick={() => setSubmitModalOrder(order)}
+                                disabled={actionLoading === order.id}
+                              >
+                                <FaPaperPlane style={{ fontSize: "0.75rem" }} />
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-sm me-1 travel-orders-action-btn"
+                                style={{ backgroundColor: "#d97706", borderColor: "#d97706", color: "#fff", width: "32px", height: "32px", borderRadius: "50%", padding: 0 }}
+                                title="Edit"
+                                onClick={() => setEditModalOrderId(order.id)}
+                                disabled={actionLoading === order.id}
+                              >
+                                {actionLoading === order.id ? <span className="spinner-border spinner-border-sm" /> : <FaEdit />}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-sm travel-orders-action-btn"
+                                style={{ backgroundColor: "#dc3545", borderColor: "#dc3545", color: "#fff", width: "32px", height: "32px", borderRadius: "50%", padding: 0 }}
+                                title="Delete"
+                                onClick={() => handleDelete(order)}
+                                disabled={actionLoading === order.id}
+                              >
+                                {actionLoading === order.id ? <span className="spinner-border spinner-border-sm" /> : <FaTrash />}
+                              </button>
+                            </>
+                          )}
+                        </td>
+                        <td className="py-2 px-2 px-md-3 small text-start travel-orders-col-purpose" style={{ color: "var(--text-primary)" }} title={order.travel_purpose}>
+                          <span className="text-truncate d-inline-block travel-orders-purpose-text">{order.travel_purpose}</span>
+                        </td>
+                        <td className="py-2 px-2 px-md-3 small text-start travel-orders-col-destination" style={{ color: "var(--text-primary)" }} title={order.destination || ""}>{order.destination || "—"}</td>
+                        <td className="py-2 px-2 px-md-3 small text-start travel-orders-col-dates" style={{ color: "var(--text-muted)" }}>
+                          {formatDate(order.start_date)} – {formatDate(order.end_date)}
+                        </td>
+                        <td className="py-2 px-2 px-md-3 text-center">{getStatusBadge(order.status)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
 
-          {pagination.last_page > 1 && (
-            <div className="card-footer bg-white border-top px-3 py-2 d-flex justify-content-between align-items-center">
-              <small style={{ color: "var(--text-muted)" }}>
-                Showing {pagination.from}-{pagination.to} of {pagination.total}
-              </small>
-              <div className="d-flex gap-1">
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  style={btnOutline}
-                  onClick={() => handlePageChange(pagination.current_page - 1)}
-                  disabled={pagination.current_page <= 1}
-                >
-                  Previous
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  style={btnOutline}
-                  onClick={() => handlePageChange(pagination.current_page + 1)}
-                  disabled={pagination.current_page >= pagination.last_page}
-                >
-                  Next
-                </button>
+          {filteredOrders.length > 0 && (
+            <div className="card-footer bg-white border-top px-2 px-md-3 py-2 travel-orders-pagination-wrap">
+              <div className="travel-orders-pagination d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div className="d-flex flex-wrap align-items-center gap-2 gap-md-3 order-2 order-md-1">
+                  <div className="travel-orders-pagination-info small text-muted">
+                    Showing <span className="fw-semibold">{from}</span>–<span className="fw-semibold">{to}</span> of <span className="fw-semibold">{total}</span>
+                  </div>
+                  <div className="d-flex align-items-center gap-1">
+                    <label htmlFor="travel-orders-per-page" className="small text-muted mb-0 me-1">Per page</label>
+                    <select
+                      id="travel-orders-per-page"
+                      className="travel-orders-per-page-select form-select form-select-sm"
+                      value={pageSize}
+                      onChange={handlePageSizeChange}
+                      aria-label="Rows per page"
+                    >
+                      {PAGE_SIZE_OPTIONS.map((n) => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {lastPage > 1 && (
+                  <nav className="d-flex align-items-center gap-1 flex-wrap justify-content-center order-1 order-md-2" aria-label="Table pagination">
+                    <button
+                      type="button"
+                      className="travel-orders-pagination-btn"
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage <= 1}
+                      aria-label="First page"
+                      title="First page"
+                    >
+                      <FaAngleDoubleLeft />
+                    </button>
+                    <button
+                      type="button"
+                      className="travel-orders-pagination-btn"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage <= 1}
+                      aria-label="Previous page"
+                      title="Previous"
+                    >
+                      <FaChevronLeft className="me-0 me-sm-1" />
+                      <span className="d-none d-sm-inline">Prev</span>
+                    </button>
+                    <div className="d-flex align-items-center gap-1 flex-wrap justify-content-center">
+                      {getPageNumbers(currentPage, lastPage).map((item, idx) =>
+                        item === "…" ? (
+                          <span key={`ellipsis-${idx}`} className="travel-orders-pagination-ellipsis px-1" aria-hidden="true">…</span>
+                        ) : (
+                          <button
+                            key={item}
+                            type="button"
+                            className={`travel-orders-pagination-btn travel-orders-pagination-btn-num ${currentPage === item ? "active" : ""}`}
+                            onClick={() => handlePageChange(item)}
+                            disabled={currentPage === item}
+                            aria-label={`Page ${item}`}
+                            aria-current={currentPage === item ? "page" : undefined}
+                          >
+                            {item}
+                          </button>
+                        )
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="travel-orders-pagination-btn"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage >= lastPage}
+                      aria-label="Next page"
+                      title="Next"
+                    >
+                      <span className="d-none d-sm-inline">Next</span>
+                      <FaChevronRight className="ms-0 ms-sm-1" />
+                    </button>
+                    <button
+                      type="button"
+                      className="travel-orders-pagination-btn"
+                      onClick={() => handlePageChange(lastPage)}
+                      disabled={currentPage >= lastPage}
+                      aria-label="Last page"
+                      title="Last page"
+                    >
+                      <FaAngleDoubleRight />
+                    </button>
+                  </nav>
+                )}
               </div>
             </div>
           )}
@@ -487,6 +908,31 @@ const TravelOrdersList = () => {
           token={token}
           onClose={() => setSubmitModalOrder(null)}
           onSuccess={handleSubmitSuccess}
+        />
+      )}
+
+      {editModalOrderId && (
+        <EditTravelOrderModal
+          orderId={editModalOrderId}
+          token={token}
+          onClose={() => setEditModalOrderId(null)}
+          onSuccess={fetchOrders}
+        />
+      )}
+
+      {viewModalOrderId && (
+        <ViewTravelOrderModal
+          orderId={viewModalOrderId}
+          token={token}
+          onClose={() => setViewModalOrderId(null)}
+        />
+      )}
+
+      {numberModal.show && (
+        <NumberViewModal
+          title={numberModal.title}
+          value={numberModal.value}
+          onClose={() => setNumberModal({ show: false, title: "", value: "" })}
         />
       )}
     </div>

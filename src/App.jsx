@@ -9,6 +9,7 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { BrandingProvider } from "./contexts/BrandingContext";
+import { UnsavedChangesProvider } from "./contexts/UnsavedChangesContext";
 import Preloader from "./components/Preloader";
 import Login from "./pages/public/Login";
 import Layout from "./layout/Layout";
@@ -24,6 +25,7 @@ import TravelOrderForm from "./pages/Personnel/TravelOrders/TravelOrderForm";
 import PendingReviews from "./pages/HeadDirector/PendingReviews/PendingReviews";
 import ReviewTravelOrder from "./pages/HeadDirector/ReviewTravelOrder/ReviewTravelOrder";
 import DirectorHistory from "./pages/HeadDirector/DirectorHistory/DirectorHistory";
+import SignatureSettings from "./pages/HeadDirector/Profile/SignatureSettings";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -146,6 +148,9 @@ const AppRoutes = () => {
         <Route path="approved" element={<DirectorHistory filterStatus="approved" />} />
         <Route path="rejected" element={<DirectorHistory filterStatus="rejected" />} />
         <Route path="history" element={<DirectorHistory filterStatus="all" />} />
+
+        {/* Director: profile / signature */}
+        <Route path="director/signature" element={<SignatureSettings />} />
       </Route>
 
       {/* Catch all - redirect to dashboard */}
@@ -159,7 +164,8 @@ const App = () => {
     <Router>
       <BrandingProvider>
         <AuthProvider>
-          <AppRoutes />
+          <UnsavedChangesProvider>
+            <AppRoutes />
           <ToastContainer
           position="top-right"
           autoClose={3000}
@@ -173,6 +179,7 @@ const App = () => {
           theme="light"
           style={{ zIndex: 99999 }}
         />
+          </UnsavedChangesProvider>
         </AuthProvider>
       </BrandingProvider>
     </Router>

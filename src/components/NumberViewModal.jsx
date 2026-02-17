@@ -48,7 +48,7 @@ const NumberViewModal = ({ title, value, onClose }) => {
         className={`modal fade show d-block ${
           isClosing ? "modal-backdrop-animation exit" : "modal-backdrop-animation"
         }`}
-        style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+        style={{ backgroundColor: "rgba(0,0,0,0.6)", zIndex: 2060 }}
         onClick={handleBackdropClick}
         tabIndex={-1}
       >

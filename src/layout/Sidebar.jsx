@@ -1,12 +1,15 @@
 // src/layout/Sidebar.jsx
 import React from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { useLocation, Link } from "react-router-dom";
+import { useUnsavedChanges } from "../contexts/UnsavedChangesContext";
+import { showAlert } from "../services/notificationService";
+import { useLocation, Link, useNavigate } from "react-router-dom";
 
 const Sidebar = ({ onCloseSidebar }) => {
   const { user, isAdmin, isPersonnel, isDirector } = useAuth();
-
   const location = useLocation();
+  const navigate = useNavigate();
+  const { blocking } = useUnsavedChanges();
 
   const isActiveLink = (href) => {
     // Normalize to avoid trailing slash mismatches
@@ -22,7 +25,29 @@ const Sidebar = ({ onCloseSidebar }) => {
     }
   };
 
-  const handleLinkClick = () => {
+  const normalizePath = (p) => (p || "").replace(/\/+$/, "");
+
+  const handleLinkClick = (e, itemHref) => {
+    const current = normalizePath(location.pathname);
+    const target = normalizePath(itemHref);
+    const hasUnsavedBlock = blocking?.isDirty && current === normalizePath(blocking.path);
+    if (hasUnsavedBlock && target !== current) {
+      e.preventDefault();
+      showAlert
+        .confirm(
+          "Unsaved progress",
+          "You have unsaved changes to this travel order. If you leave now, your progress will not be saved. Do you want to leave anyway?",
+          "Leave",
+          "Stay"
+        )
+        .then((result) => {
+          if (result.isConfirmed) {
+            navigate(itemHref);
+            closeSidebarOnMobile();
+          }
+        });
+      return;
+    }
     closeSidebarOnMobile();
   };
 
@@ -130,6 +155,16 @@ const Sidebar = ({ onCloseSidebar }) => {
         },
       ],
     },
+    {
+      heading: "Profile",
+      items: [
+        {
+          icon: "fas fa-pen-nib",
+          label: "Digital signature",
+          href: "/director/signature",
+        },
+      ],
+    },
   ];
 
   const personnelMenuItems = [
@@ -150,6 +185,11 @@ const Sidebar = ({ onCloseSidebar }) => {
           icon: "fas fa-file-alt",
           label: "Travel Orders",
           href: "/travel-orders",
+        },
+        {
+          icon: "fas fa-plus-circle",
+          label: "New Travel Order",
+          href: "/travel-orders/create",
         },
         {
           icon: "fas fa-history",
@@ -184,7 +224,7 @@ const Sidebar = ({ onCloseSidebar }) => {
             key={itemIndex}
             className={`nav-link ${isActive ? "active" : ""}`}
             to={item.href}
-            onClick={handleLinkClick}
+            onClick={(e) => handleLinkClick(e, item.href)}
           >
             <div className="sb-nav-link-icon">
               <i className={item.icon}></i>

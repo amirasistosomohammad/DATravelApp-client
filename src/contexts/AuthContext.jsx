@@ -6,6 +6,40 @@ const AuthContext = createContext(null);
 const API_BASE_URL =
   import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api";
 
+// Derive the API origin (scheme + host + port) once so we can
+// normalize avatar URLs that might still point at localhost in prod.
+let API_ORIGIN = "";
+try {
+  const url = new URL(API_BASE_URL);
+  API_ORIGIN = url.origin;
+} catch {
+  API_ORIGIN = "";
+}
+
+const normalizeAvatarUrl = (avatar) => {
+  if (!avatar || !API_ORIGIN) return avatar;
+  try {
+    const srcUrl = new URL(avatar, API_ORIGIN);
+    const isLocalhost =
+      srcUrl.hostname === "localhost" || srcUrl.hostname === "127.0.0.1";
+    // If backend returned a localhost/127.0.0.1 URL (common when APP_URL is misconfigured),
+    // force the avatar to use the same origin as the API base URL instead.
+    if (!isLocalhost) return avatar;
+    return `${API_ORIGIN}${srcUrl.pathname}${srcUrl.search}${srcUrl.hash}`;
+  } catch {
+    return avatar;
+  }
+};
+
+const normalizeUserFromApi = (userData) => {
+  if (!userData) return userData;
+  const normalized = { ...userData };
+  if (normalized.avatar) {
+    normalized.avatar = normalizeAvatarUrl(normalized.avatar);
+  }
+  return normalized;
+};
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -94,7 +128,7 @@ export const AuthProvider = ({ children }) => {
           try {
             const response = await apiCall("/me", { method: "GET" });
             if (response.success && response.data?.user) {
-              const userData = response.data.user;
+              const userData = normalizeUserFromApi(response.data.user);
               setUser(userData);
               setIsAuthenticated(true);
               // Update stored user data
@@ -114,7 +148,8 @@ export const AuthProvider = ({ children }) => {
               // Use stored user data temporarily
               try {
                 const storedUserData = JSON.parse(storedUser);
-                setUser(storedUserData);
+                const normalized = normalizeUserFromApi(storedUserData);
+                setUser(normalized);
                 setIsAuthenticated(true);
               } catch (parseError) {
                 // If stored user is invalid, clear everything
@@ -144,7 +179,8 @@ export const AuthProvider = ({ children }) => {
               );
               try {
                 const storedUserData = JSON.parse(storedUser);
-                setUser(storedUserData);
+                const normalized = normalizeUserFromApi(storedUserData);
+                setUser(normalized);
                 setIsAuthenticated(true);
               } catch (parseError) {
                 setUser(null);
@@ -184,7 +220,8 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (response.success && response.data) {
-        const { user: userData, token, expires_at } = response.data;
+        const { user: rawUser, token, expires_at } = response.data;
+        const userData = normalizeUserFromApi(rawUser);
 
         // Store user and token
         localStorage.setItem("user", JSON.stringify(userData));
@@ -263,7 +300,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await apiCall("/me", { method: "GET" });
       if (response.success && response.data?.user) {
-        const userData = response.data.user;
+        const userData = normalizeUserFromApi(response.data.user);
         setUser(userData);
         setIsAuthenticated(true);
         localStorage.setItem("user", JSON.stringify(userData));
