@@ -22,9 +22,13 @@ import DirectorMembers from "./pages/ICTAdmin/DirectorMembers/DirectorMembers";
 import SystemSettings from "./pages/ICTAdmin/Settings/SystemSettings";
 import TravelOrdersList from "./pages/Personnel/TravelOrders/TravelOrdersList";
 import TravelOrderForm from "./pages/Personnel/TravelOrders/TravelOrderForm";
+import PersonnelHistory from "./pages/Personnel/TravelOrders/PersonnelHistory";
+import PersonnelProfile from "./pages/Personnel/PersonnelProfile/PersonnelProfile";
+import PersonnelCalendar from "./pages/Personnel/PersonnelCalendar/PersonnelCalendar";
 import PendingReviews from "./pages/HeadDirector/PendingReviews/PendingReviews";
 import ReviewTravelOrder from "./pages/HeadDirector/ReviewTravelOrder/ReviewTravelOrder";
 import DirectorHistory from "./pages/HeadDirector/DirectorHistory/DirectorHistory";
+import DirectorProfile from "./pages/HeadDirector/Profile/DirectorProfile";
 import SignatureSettings from "./pages/HeadDirector/Profile/SignatureSettings";
 
 // Protected Route Component
@@ -121,12 +125,9 @@ const AppRoutes = () => {
         <Route path="travel-orders" element={<TravelOrdersList />} />
         <Route path="travel-orders/create" element={<TravelOrderForm />} />
         <Route path="travel-orders/:id/edit" element={<TravelOrderForm />} />
-        <Route
-          path="travel-orders/history"
-          element={
-            <InDevelopment label="Travel Orders history is in development." />
-          }
-        />
+        <Route path="travel-orders/history" element={<PersonnelHistory />} />
+        <Route path="calendar" element={<PersonnelCalendar />} />
+        <Route path="profile" element={<PersonnelProfile />} />
         <Route
           path="reports"
           element={
@@ -145,11 +146,13 @@ const AppRoutes = () => {
         {/* Director: Travel order reviews (Phase 5) */}
         <Route path="pending-reviews" element={<PendingReviews />} />
         <Route path="pending-reviews/:id" element={<ReviewTravelOrder />} />
-        <Route path="approved" element={<DirectorHistory filterStatus="approved" />} />
-        <Route path="rejected" element={<DirectorHistory filterStatus="rejected" />} />
-        <Route path="history" element={<DirectorHistory filterStatus="all" />} />
+        <Route path="recommended" element={<DirectorHistory key="recommended" filterStatus="recommended" />} />
+        <Route path="approved" element={<DirectorHistory key="approved" filterStatus="approved" />} />
+        <Route path="rejected" element={<DirectorHistory key="rejected" filterStatus="rejected" />} />
+        <Route path="history" element={<DirectorHistory key="all" filterStatus="all" />} />
 
         {/* Director: profile / signature */}
+        <Route path="director/profile" element={<DirectorProfile />} />
         <Route path="director/signature" element={<SignatureSettings />} />
       </Route>
 

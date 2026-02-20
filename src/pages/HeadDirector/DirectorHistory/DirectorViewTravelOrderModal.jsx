@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { FaEye, FaPaperclip, FaDownload, FaUser, FaCalendarAlt, FaCheckCircle, FaFilePdf, FaFileExcel } from "react-icons/fa";
+import { FaEye, FaPaperclip, FaDownload, FaUser, FaCalendarAlt, FaCheckCircle, FaFileExcel } from "react-icons/fa";
 import { toast } from "react-toastify";
 import Portal from "../../../components/Portal";
 import LoadingSpinner from "../../../components/admin/LoadingSpinner";
@@ -8,11 +8,11 @@ import { showAlert } from "../../../services/notificationService";
 const API_BASE_URL =
   import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api";
 
-const ViewTravelOrderModal = ({ orderId, token, onClose }) => {
+const DirectorViewTravelOrderModal = ({ order: orderProp, orderId, token, onClose }) => {
   const [isClosing, setIsClosing] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!orderProp);
   const [exporting, setExporting] = useState(false);
-  const [order, setOrder] = useState(null);
+  const [order, setOrder] = useState(orderProp || null);
 
   const handleClose = useCallback(() => {
     setIsClosing(true);
@@ -32,7 +32,7 @@ const ViewTravelOrderModal = ({ orderId, token, onClose }) => {
     setLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE_URL}/personnel/travel-orders/${orderId}`,
+        `${API_BASE_URL}/directors/travel-orders/${orderId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -42,25 +42,32 @@ const ViewTravelOrderModal = ({ orderId, token, onClose }) => {
       );
       const data = await response.json();
       if (!response.ok) throw data?.message || "Failed to load travel order";
-      setOrder(data?.data ?? data);
+      setOrder(data?.data?.travel_order ?? data?.data ?? data);
     } catch (err) {
-      toast.error(typeof err === "string" ? err : err?.message || "Failed to load");
+      toast.error(
+        typeof err === "string" ? err : err?.message || "Failed to load"
+      );
       handleClose();
     } finally {
       setLoading(false);
     }
-  }, [orderId, token]);
+  }, [orderId, token, handleClose]);
 
   useEffect(() => {
-    fetchOrder();
-  }, [fetchOrder]);
+    if (orderProp) {
+      setOrder(orderProp);
+      setLoading(false);
+    } else if (orderId) {
+      fetchOrder();
+    }
+  }, [orderProp, orderId, fetchOrder]);
 
   const downloadAttachment = useCallback(
     async (attachmentId, fileName) => {
       if (!token) return;
       try {
         const response = await fetch(
-          `${API_BASE_URL}/personnel/travel-order-attachments/${attachmentId}/download`,
+          `${API_BASE_URL}/directors/travel-order-attachments/${attachmentId}/download`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!response.ok) throw new Error("Download failed");
@@ -80,57 +87,14 @@ const ViewTravelOrderModal = ({ orderId, token, onClose }) => {
     [token]
   );
 
-  const downloadPdf = useCallback(
-    async ({ includeCtt }) => {
-      if (!orderId || !token) return;
-      setExporting(true);
-      showAlert.loadingWithOverlay(includeCtt ? "Generating TO + CTT PDF..." : "Generating TO PDF...");
-      try {
-        const url = `${API_BASE_URL}/personnel/travel-orders/${orderId}/export/pdf${includeCtt ? "?include_ctt=1" : ""}`;
-        const response = await fetch(url, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/pdf",
-          },
-        });
-        if (!response.ok) {
-          let message = "Failed to generate PDF";
-          try {
-            const data = await response.json();
-            message = data?.message || message;
-          } catch {
-            // ignore
-          }
-          throw new Error(message);
-        }
-        const blob = await response.blob();
-        const fileName = includeCtt ? `TRAVEL_ORDER_${orderId}_CTT.pdf` : `TRAVEL_ORDER_${orderId}.pdf`;
-        const blobUrl = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(blobUrl);
-        a.remove();
-        toast.success("PDF downloaded.");
-      } catch (err) {
-        toast.error(err?.message || "Failed to generate PDF");
-      } finally {
-        showAlert.close();
-        setExporting(false);
-      }
-    },
-    [orderId, token]
-  );
-
   const downloadExcel = useCallback(
     async () => {
-      if (!orderId || !token) return;
+      const id = order?.id || orderId;
+      if (!id || !token) return;
       setExporting(true);
       showAlert.loadingWithOverlay("Generating Excel Travel Order...");
       try {
-        const url = `${API_BASE_URL}/personnel/travel-orders/${orderId}/export/excel`;
+        const url = `${API_BASE_URL}/directors/travel-orders/${id}/export/excel`;
         const response = await fetch(url, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -149,7 +113,7 @@ const ViewTravelOrderModal = ({ orderId, token, onClose }) => {
         }
         const blob = await response.blob();
         const contentDisposition = response.headers.get("content-disposition");
-        let fileName = `TRAVEL_ORDER_${orderId}.xlsx`;
+        let fileName = `TRAVEL_ORDER_${id}.xlsx`;
         if (contentDisposition) {
           const fileNameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
           if (fileNameMatch && fileNameMatch[1]) {
@@ -172,7 +136,7 @@ const ViewTravelOrderModal = ({ orderId, token, onClose }) => {
         setExporting(false);
       }
     },
-    [orderId, token]
+    [order?.id, orderId, token]
   );
 
   const formatDate = (d) => {
@@ -249,7 +213,7 @@ const ViewTravelOrderModal = ({ orderId, token, onClose }) => {
     return map[type] || "Other";
   };
 
-  if (!orderId) return null;
+  if (!orderProp && !orderId) return null;
 
   return (
     <Portal>
@@ -546,4 +510,4 @@ const ViewTravelOrderModal = ({ orderId, token, onClose }) => {
   );
 };
 
-export default ViewTravelOrderModal;
+export default DirectorViewTravelOrderModal;

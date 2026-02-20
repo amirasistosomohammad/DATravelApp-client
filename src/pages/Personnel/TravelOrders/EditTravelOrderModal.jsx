@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { FaEdit, FaPaperclip, FaTrash } from "react-icons/fa";
 import { toast } from "react-toastify";
 import Portal from "../../../components/Portal";
@@ -29,28 +29,27 @@ const ATTACHMENT_TYPES = [
   { value: "other", label: "Other" },
 ];
 
+const getAttachmentTypeLabel = (type) => {
+  const found = ATTACHMENT_TYPES.find((t) => t.value === type);
+  return found ? found.label : "Other";
+};
+
 const EditTravelOrderModal = ({ orderId, token, onClose, onSuccess }) => {
   const [isClosing, setIsClosing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState(DEFAULT_FORM);
   const [existingAttachments, setExistingAttachments] = useState([]);
+  const [existingAttachmentTypes, setExistingAttachmentTypes] = useState({});
   const [deleteAttachmentIds, setDeleteAttachmentIds] = useState([]);
   const [newFiles, setNewFiles] = useState([]);
   const [errors, setErrors] = useState({});
+  const initialSnapshotRef = useRef(null);
 
-  const handleClose = useCallback(() => {
+  const closeImmediately = useCallback(() => {
     setIsClosing(true);
     setTimeout(() => onClose?.(), 200);
   }, [onClose]);
-
-  useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === "Escape") handleClose();
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [handleClose]);
 
   const fetchOrder = useCallback(async () => {
     if (!orderId || !token) return;
@@ -70,10 +69,10 @@ const EditTravelOrderModal = ({ orderId, token, onClose, onSuccess }) => {
       const order = data?.data ?? data;
       if (order.status !== "draft") {
         toast.error("Only draft travel orders can be edited.");
-        handleClose();
+        closeImmediately();
         return;
       }
-      setFormData({
+      const loaded = {
         travel_purpose: order.travel_purpose ?? "",
         destination: order.destination ?? "",
         official_station: order.official_station ?? "",
@@ -85,19 +84,69 @@ const EditTravelOrderModal = ({ orderId, token, onClose, onSuccess }) => {
         assistant_or_laborers_allowed: order.assistant_or_laborers_allowed ?? "",
         appropriation: order.appropriation ?? "",
         remarks: order.remarks ?? "",
-      });
-      setExistingAttachments(order.attachments ?? []);
+      };
+      setFormData(loaded);
+      const atts = order.attachments ?? [];
+      setExistingAttachments(atts);
+      setExistingAttachmentTypes(
+        atts.reduce((acc, a) => {
+          acc[a.id] = a.type || "other";
+          return acc;
+        }, {})
+      );
+      initialSnapshotRef.current = {
+        formData: loaded,
+      };
     } catch (err) {
       toast.error(typeof err === "string" ? err : err?.message || "Failed to load");
-      handleClose();
+      closeImmediately();
     } finally {
       setLoading(false);
     }
-  }, [orderId, token, onClose]);
+  }, [orderId, token, closeImmediately]);
 
   useEffect(() => {
     fetchOrder();
   }, [fetchOrder]);
+
+  const isDirty = (() => {
+    if (!initialSnapshotRef.current) return false;
+    const initial = initialSnapshotRef.current.formData;
+    const keys = Object.keys(DEFAULT_FORM);
+    const formChanged = !keys.every(
+      (k) => (initial[k] ?? "") === (formData[k] ?? "")
+    );
+    const attachmentsChanged =
+      deleteAttachmentIds.length > 0 || newFiles.length > 0;
+    return formChanged || attachmentsChanged;
+  })();
+
+  const handleClose = useCallback(() => {
+    if (!isDirty) {
+      closeImmediately();
+      return;
+    }
+    showAlert
+      .confirm(
+        "Unsaved progress",
+        "You have unsaved changes to this travel order. If you close now, your changes will not be saved. Do you want to discard your changes?",
+        "Discard changes",
+        "Continue editing"
+      )
+      .then((result) => {
+        if (result.isConfirmed) {
+          closeImmediately();
+        }
+      });
+  }, [isDirty, closeImmediately]);
+
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === "Escape") handleClose();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [handleClose]);
 
   const computeErrors = (data) => {
     const e = {};
@@ -167,6 +216,10 @@ const EditTravelOrderModal = ({ orderId, token, onClose, onSuccess }) => {
     setDeleteAttachmentIds((prev) => prev.filter((id) => id !== attId));
   };
 
+  const setExistingAttachmentType = (attId, type) => {
+    setExistingAttachmentTypes((prev) => ({ ...prev, [attId]: type }));
+  };
+
   const downloadAttachment = async (attachmentId, fileName) => {
     try {
       const response = await fetch(
@@ -203,6 +256,11 @@ const EditTravelOrderModal = ({ orderId, token, onClose, onSuccess }) => {
     if (formData.remarks) payload.append("remarks", formData.remarks);
     payload.append("_method", "PUT");
     deleteAttachmentIds.forEach((aid) => payload.append("delete_attachment_ids[]", aid));
+    Object.entries(existingAttachmentTypes).forEach(([id, type]) => {
+      if (!deleteAttachmentIds.includes(Number(id))) {
+        payload.append(`existing_attachment_types[${id}]`, type);
+      }
+    });
     newFiles.forEach((item) => {
       payload.append("attachments[]", item.file);
       payload.append("attachment_types[]", item.type);
@@ -240,7 +298,7 @@ const EditTravelOrderModal = ({ orderId, token, onClose, onSuccess }) => {
       }
       toast.success("Travel order updated.");
       onSuccess?.();
-      handleClose();
+      closeImmediately();
     } catch (err) {
       const msg = typeof err === "string" ? err : err?.message || "Failed to save";
       toast.error(msg);
@@ -295,14 +353,15 @@ const EditTravelOrderModal = ({ orderId, token, onClose, onSuccess }) => {
                     <div className="row g-3">
                       <div className="col-12">
                         <label className="form-label">Travel purpose <span className="text-danger">*</span></label>
-                        <input
-                          type="text"
+                        <textarea
                           name="travel_purpose"
                           className={`form-control ${errors.travel_purpose ? "is-invalid" : ""}`}
-                          placeholder="e.g. To attend conference..."
+                          placeholder={"e.g. To attend the following activities:\n1.) Workshop on January 26\n2.) Training on January 27-28"}
                           value={formData.travel_purpose}
                           onChange={handleChange}
                           maxLength={500}
+                          rows={4}
+                          style={{ resize: "vertical" }}
                         />
                         {errors.travel_purpose && <div className="invalid-feedback d-block">{errors.travel_purpose}</div>}
                       </div>
@@ -460,20 +519,64 @@ const EditTravelOrderModal = ({ orderId, token, onClose, onSuccess }) => {
                             const marked = deleteAttachmentIds.includes(att.id);
                             return (
                               <li key={att.id} className="list-group-item d-flex align-items-center justify-content-between py-2 px-0 border-0">
-                                <button
-                                  type="button"
-                                  className={`btn btn-link btn-sm p-0 text-start text-decoration-none ${marked ? "text-decoration-line-through text-muted" : ""}`}
-                                  onClick={() => downloadAttachment(att.id, att.file_name)}
-                                  disabled={marked}
-                                >
-                                  {att.file_name}
-                                </button>
+                                <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-1 gap-sm-2 flex-grow-1 me-2">
+                                  <button
+                                    type="button"
+                                    className={`btn btn-link btn-sm p-0 text-start text-decoration-none ${marked ? "text-decoration-line-through text-muted" : ""}`}
+                                    onClick={() => downloadAttachment(att.id, att.file_name)}
+                                    disabled={marked}
+                                    title={att.file_name}
+                                  >
+                                    {att.file_name}
+                                  </button>
+                                  <span
+                                    className="badge bg-light text-dark border"
+                                    style={{ fontWeight: 600, borderRadius: "999px" }}
+                                  >
+                                    {getAttachmentTypeLabel(existingAttachmentTypes[att.id] || att.type || "other")}
+                                  </span>
+                                  <select
+                                    className="form-select form-select-sm"
+                                    value={existingAttachmentTypes[att.id] || "other"}
+                                    onChange={(e) => setExistingAttachmentType(att.id, e.target.value)}
+                                    disabled={marked}
+                                    style={{ width: "auto", minWidth: "190px", borderRadius: "0.375rem" }}
+                                    aria-label="Attachment type"
+                                  >
+                                    {ATTACHMENT_TYPES.map((opt) => (
+                                      <option key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
                                 {!marked ? (
-                                  <button type="button" className="btn btn-sm btn-outline-danger rounded-pill py-0 px-2" onClick={() => markAttachmentForDelete(att)}>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-danger d-flex align-items-center gap-1"
+                                    onClick={() => markAttachmentForDelete(att)}
+                                    style={{
+                                      borderRadius: "0.375rem",
+                                      boxShadow: "0 1px 3px rgba(15,23,42,0.18)",
+                                      transition:
+                                        "background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease",
+                                    }}
+                                  >
                                     <FaTrash className="small" />
+                                    <span>Remove</span>
                                   </button>
                                 ) : (
-                                  <button type="button" className="btn btn-sm btn-outline-secondary rounded-pill py-0 px-2" onClick={() => unmarkAttachmentForDelete(att.id)}>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-secondary"
+                                    onClick={() => unmarkAttachmentForDelete(att.id)}
+                                    style={{
+                                      borderRadius: "0.375rem",
+                                      boxShadow: "0 1px 3px rgba(15,23,42,0.18)",
+                                      transition:
+                                        "background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease",
+                                    }}
+                                  >
                                     Undo
                                   </button>
                                 )}
@@ -505,7 +608,19 @@ const EditTravelOrderModal = ({ orderId, token, onClose, onSuccess }) => {
                                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                                   ))}
                                 </select>
-                                <button type="button" className="btn btn-sm btn-outline-danger rounded-pill py-0 px-2" onClick={() => removeNewFile(index)}>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-danger d-flex align-items-center justify-content-center"
+                                  onClick={() => removeNewFile(index)}
+                                  style={{
+                                    width: "32px",
+                                    height: "32px",
+                                    borderRadius: "50%",
+                                    boxShadow: "0 1px 3px rgba(15,23,42,0.18)",
+                                    transition:
+                                      "background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease",
+                                  }}
+                                >
                                   <FaTrash className="small" />
                                 </button>
                               </div>
@@ -518,15 +633,32 @@ const EditTravelOrderModal = ({ orderId, token, onClose, onSuccess }) => {
                 </div>
 
                 <div className="modal-footer d-flex justify-content-end gap-2">
-                  <button type="button" className="btn btn-outline-secondary" onClick={handleClose}>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-secondary d-flex align-items-center gap-2"
+                    onClick={handleClose}
+                    disabled={saving}
+                    style={{
+                      borderRadius: "0.375rem",
+                      boxShadow: "0 1px 3px rgba(15,23,42,0.18)",
+                      transition:
+                        "background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease",
+                    }}
+                  >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="btn btn-primary-submit"
+                    className="btn btn-sm btn-primary d-flex align-items-center gap-2"
                     disabled={saving}
+                    style={{
+                      borderRadius: "0.375rem",
+                      boxShadow: "0 1px 3px rgba(15,23,42,0.18)",
+                      transition:
+                        "background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease",
+                    }}
                   >
-                    {saving ? <span className="spinner-border spinner-border-sm me-2" /> : null}
+                    {saving ? <span className="spinner-border spinner-border-sm me-1" /> : null}
                     Update draft
                   </button>
                 </div>

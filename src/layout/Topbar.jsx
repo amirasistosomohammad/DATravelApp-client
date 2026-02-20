@@ -111,9 +111,9 @@ const Topbar = ({ onToggleSidebar }) => {
     setAvatarError(true);
   };
 
-  // Check if Settings should be shown
-  const shouldShowSettings = () => {
-    return isAdmin() || isPersonnel() || isDirector();
+  // Check if Profile should be shown (personnel & director)
+  const shouldShowProfile = () => {
+    return isPersonnel() || isDirector();
   };
 
   // Render user icon based on role
@@ -348,21 +348,21 @@ const Topbar = ({ onToggleSidebar }) => {
             <li>
               <div className="dropdown-separator"></div>
             </li>
-            {/* Conditionally show Settings dropdown item */}
-            {shouldShowSettings() && (
+            {/* Conditionally show Profile dropdown item */}
+            {shouldShowProfile() && (
               <li>
                 <button
                   className="dropdown-item custom-dropdown-item"
                   onClick={() => {
                     setShowDropdown(false);
-                    handleNavigation("/settings");
+                    handleNavigation(isDirector() ? "/director/profile" : "/profile");
                   }}
                 >
-                  <i className="fas fa-cog me-2"></i>Settings
+                  <i className="fas fa-user me-2"></i>Profile
                 </button>
               </li>
             )}
-            {shouldShowSettings() && (
+            {shouldShowProfile() && (
               <li>
                 <div className="dropdown-separator"></div>
               </li>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { FaPaperPlane } from "react-icons/fa";
+import { FaPaperPlane, FaSitemap } from "react-icons/fa";
 import Portal from "../../../components/Portal";
 import { showAlert } from "../../../services/notificationService";
 
@@ -15,10 +15,32 @@ const SubmitTravelOrderModal = ({ order, onClose, onSuccess, token }) => {
   const [approvingDirectorId, setApprovingDirectorId] = useState("");
   const [error, setError] = useState("");
 
-  const handleClose = useCallback(() => {
+  const closeImmediately = useCallback(() => {
     setIsClosing(true);
     setTimeout(() => onClose?.(), 200);
   }, [onClose]);
+
+  const isDirty =
+    Boolean(recommendingDirectorId) || Boolean(approvingDirectorId);
+
+  const handleClose = useCallback(() => {
+    if (!isDirty) {
+      closeImmediately();
+      return;
+    }
+    showAlert
+      .confirm(
+        "Unsaved progress",
+        "You have selected directors for this submission. If you close now, your selections will be cleared. Do you want to discard your changes?",
+        "Discard changes",
+        "Continue editing"
+      )
+      .then((result) => {
+        if (result.isConfirmed) {
+          closeImmediately();
+        }
+      });
+  }, [isDirty, closeImmediately]);
 
   useEffect(() => {
     const handleEscape = (e) => {
@@ -82,7 +104,7 @@ const SubmitTravelOrderModal = ({ order, onClose, onSuccess, token }) => {
         throw data?.message || data?.errors || "Failed to submit";
       }
       onSuccess?.(data);
-      handleClose();
+      closeImmediately();
     } catch (err) {
       setError(typeof err === "string" ? err : err?.message || "Failed to submit");
     } finally {
@@ -126,14 +148,54 @@ const SubmitTravelOrderModal = ({ order, onClose, onSuccess, token }) => {
           <form onSubmit={handleSubmit}>
             <div className="modal-body">
               <p className="small mb-3" style={{ color: "var(--text-muted)" }}>
-                Submit &quot;{order.travel_purpose}&quot; for director review.
+                Submit &quot;{order.travel_purpose}&quot; for routing through your directors.
               </p>
-              <div className="alert alert-info py-2 small mb-3" role="note" style={{ borderRadius: "0.5rem" }}>
-                <div className="fw-semibold mb-1">Approval flow</div>
-                <ul className="mb-0 ps-3">
-                  <li><span className="fw-semibold">Recommending director</span> reviews first.</li>
-                  <li>The <span className="fw-semibold">Approving director</span> will only see the travel order after it is recommended.</li>
-                </ul>
+              <div
+                className="alert alert-info mb-3"
+                role="note"
+                style={{
+                  borderRadius: "0.75rem",
+                  border: "1px solid rgba(13,122,58,0.2)",
+                  background:
+                    "linear-gradient(135deg, rgba(13,122,58,0.04), rgba(13,122,58,0.09))",
+                }}
+              >
+                <div className="d-flex">
+                  <div
+                    className="flex-shrink-0 me-2 d-flex align-items-start justify-content-center"
+                    style={{
+                      width: "1.75rem",
+                      height: "1.75rem",
+                      borderRadius: "999px",
+                      backgroundColor: "rgba(13,122,58,0.12)",
+                      color: "var(--primary-color)",
+                      marginTop: "2px",
+                    }}
+                  >
+                    <FaSitemap style={{ fontSize: "0.9rem", marginTop: "0.25rem" }} />
+                  </div>
+                  <div className="small">
+                    <div
+                      className="text-uppercase fw-semibold mb-1"
+                      style={{ letterSpacing: "0.06em", color: "var(--text-primary)" }}
+                    >
+                      Approval flow
+                    </div>
+                    <p className="mb-1" style={{ color: "var(--text-muted)" }}>
+                      This travel order follows a two‑step electronic review.
+                    </p>
+                    <ol className="mb-0 ps-3">
+                      <li>
+                        <span className="fw-semibold">Step 1 – Recommending director</span>{" "}
+                        reviews the request and may return it with comments.
+                      </li>
+                      <li>
+                        <span className="fw-semibold">Step 2 – Approving director</span>{" "}
+                        receives the travel order only after it has been recommended.
+                      </li>
+                    </ol>
+                  </div>
+                </div>
               </div>
               {loadingDirectors ? (
                 <div className="text-center py-3">

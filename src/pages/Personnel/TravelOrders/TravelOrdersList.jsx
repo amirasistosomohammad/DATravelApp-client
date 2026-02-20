@@ -544,7 +544,7 @@ const TravelOrdersList = () => {
       </div>
 
       {/* Stats */}
-      <div className="card travel-orders-stats-card mb-4">
+      <div className="card gov-list-card travel-orders-stats-card mb-4">
         <div className="card-body p-0 d-flex flex-column flex-md-row">
           <div className="travel-orders-stat-item d-flex align-items-center gap-3 flex-grow-1">
             <div className="travel-orders-stat-icon flex-shrink-0">
@@ -600,7 +600,7 @@ const TravelOrdersList = () => {
       </div>
 
       {/* Filters */}
-      <div className="card travel-orders-filters-card shadow-sm mb-3" style={{ borderRadius: "0.5rem", border: "1px solid rgba(13,122,58,0.12)" }}>
+      <div className="card gov-list-card travel-orders-filters-card shadow-sm mb-3" style={{ borderRadius: "0.5rem", border: "1px solid rgba(13,122,58,0.12)" }}>
         <div className="card-header d-flex align-items-center gap-2 py-2 px-3">
           <FaSearch style={{ fontSize: "0.85rem", color: "var(--primary-color)" }} />
           <span className="fw-semibold" style={{ color: "var(--text-primary)", fontSize: "0.9rem" }}>Filters</span>
@@ -706,7 +706,7 @@ const TravelOrdersList = () => {
       </div>
 
       {/* List */}
-      <div className="card shadow-sm" style={{ borderRadius: "0.375rem" }}>
+      <div className="card gov-list-card shadow-sm" style={{ borderRadius: "0.375rem" }}>
         <div className="card-body p-0">
           {filteredOrders.length === 0 ? (
             <div className="text-center py-5" style={{ color: "var(--text-muted)" }}>
@@ -729,8 +729,8 @@ const TravelOrdersList = () => {
               )}
             </div>
           ) : (
-            <div className="table-responsive travel-orders-table-wrap">
-              <table className="table table-hover mb-0 travel-orders-table">
+            <div className="table-responsive gov-list-table-wrap travel-orders-table-wrap">
+              <table className="table table-hover mb-0 gov-list-table travel-orders-table">
                 <thead style={{ backgroundColor: "var(--background-light)" }}>
                   <tr>
                     <th className="border-0 py-2 px-2 px-md-3 small fw-semibold text-center travel-orders-col-no" style={{ color: "var(--text-primary)", minWidth: "2.5rem" }}>#</th>
@@ -899,7 +899,7 @@ const TravelOrdersList = () => {
               </div>
             </div>
           )}
-        </div>
+      </div>
       </div>
 
       {submitModalOrder && (

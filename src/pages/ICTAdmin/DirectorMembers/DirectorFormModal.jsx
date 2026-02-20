@@ -108,6 +108,7 @@ const DirectorFormModal = ({
     },
     first_name: (value) => (value.trim() ? "" : "First name is required"),
     last_name: (value) => (value.trim() ? "" : "Last name is required"),
+    department: (value) => (value.trim() ? "" : "Department is required"),
     position: (value) => (value.trim() ? "" : "Position is required"),
     phone: (value) => {
       if (!value) return "";
@@ -445,6 +446,7 @@ const DirectorFormModal = ({
       },
       first_name: (value) => (value.trim() ? "" : "First name is required"),
       last_name: (value) => (value.trim() ? "" : "Last name is required"),
+      department: (value) => (value.trim() ? "" : "Department is required"),
       position: (value) => (value.trim() ? "" : "Position is required"),
       phone: (value) => {
         if (!value) return "";
@@ -504,6 +506,9 @@ const DirectorFormModal = ({
     if (!formData.last_name || !formData.last_name.trim()) {
       newErrors.last_name = "Last name is required";
     }
+    if (!formData.department || !formData.department.trim()) {
+      newErrors.department = "Department is required";
+    }
     if (!formData.position || !formData.position.trim()) {
       newErrors.position = "Position is required";
     }
@@ -555,10 +560,9 @@ const DirectorFormModal = ({
       payload.append("phone", phoneDigits);
     }
 
-    // Always send department/position so the server can clear them when blank.
-    // (Empty string will be normalized to NULL server-side.)
-    payload.append("department", (formData.department || "").trim());
-    payload.append("position", (formData.position || "").trim());
+    // Department and position are now required
+    payload.append("department", formData.department.trim());
+    payload.append("position", formData.position.trim());
     payload.append(
       "contact_information",
       (formData.contact_information || "").trim()
@@ -1324,7 +1328,7 @@ const DirectorFormModal = ({
                                 className="form-label small fw-semibold mb-1"
                                 style={{ color: "var(--text-primary)" }}
                               >
-                                Department
+                                Department <span className="text-danger">*</span>
                     </label>
                     <input
                       type="text"
@@ -1335,7 +1339,8 @@ const DirectorFormModal = ({
                                 value={formData.department}
                                 onChange={handleChange}
                                 disabled={loading}
-                                placeholder="Enter department (optional)"
+                                placeholder="Enter department"
+                                required
                                 style={{
                                   backgroundColor: "var(--input-bg)",
                                   borderColor: errors.department

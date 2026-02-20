@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  FaTachometerAlt,
+  FaThLarge,
   FaPlus,
   FaFileAlt,
   FaClock,
@@ -142,7 +142,7 @@ const PersonnelDashboard = () => {
       {
         label: "History",
         icon: FaHistory,
-        route: "/history",
+        route: "/travel-orders/history",
         variant: "outline",
         color: "var(--primary-color)",
       },
@@ -151,43 +151,13 @@ const PersonnelDashboard = () => {
   );
 
   const getQuickActionStyle = (action) => ({
-    borderRadius: "8px",
-    border:
-      action.variant === "primary"
-        ? "none"
-        : `2px solid ${action.color || "var(--primary-color)"}`,
-    background:
-      action.variant === "primary"
-        ? action.background || action.color || "var(--primary-color)"
-        : "transparent",
-    color:
-      action.variant === "primary"
-        ? "#fff"
-        : action.color || "var(--primary-color)",
-    transition: "all 0.2s ease-in-out",
+    borderRadius: "0",
+    border: "1px solid var(--primary-color)",
+    background: action.background || action.color || "var(--primary-color)",
+    color: "#fff",
+    paddingInline: "0.9rem",
+    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
   });
-
-  const handleQuickActionHover = (event, action, entering) => {
-    const element = event.currentTarget;
-    if (entering) {
-      element.style.transform = "translateY(-1px)";
-      element.style.boxShadow = "0 4px 8px rgba(0,0,0,0.1)";
-      element.style.background =
-        action.background || action.color || "var(--primary-color)";
-      element.style.color = "#fff";
-    } else {
-      element.style.transform = "translateY(0)";
-      element.style.boxShadow = "none";
-      element.style.background =
-        action.variant === "primary"
-          ? action.background || action.color || "var(--primary-color)"
-          : "transparent";
-      element.style.color =
-        action.variant === "primary"
-          ? "#fff"
-          : action.color || "var(--primary-color)";
-    }
-  };
 
   const handleNumberClick = (title, value) => {
     setNumberModal({
@@ -253,226 +223,343 @@ const PersonnelDashboard = () => {
 
   return (
     <div className="container-fluid py-2 admin-dashboard-container page-enter px-1">
-      {/* Page Header */}
-      <div className="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center mb-4 gap-3">
-        <div className="text-start w-100">
-          <h1 className="h4 mb-1 fw-bold" style={{ color: "var(--text-primary)" }}>
-            <FaTachometerAlt className="me-2" />
-            Personnel Dashboard
-          </h1>
-          <p className="mb-0 small" style={{ color: "var(--text-muted)" }}>
-            {user?.name ? `Welcome back, ${user.name.split(" ")[0]}! ` : "Welcome back! "}
-            Here&apos;s an overview of your travel orders.
-          </p>
-        </div>
+      <style>{`
+        .personnel-dash-shell {
+          animation: pageEnter 0.35s ease-out;
+        }
+        .personnel-dash-header {
+          background: linear-gradient(135deg, rgba(13,122,58,0.05), rgba(13,122,58,0.12));
+          border-radius: 12px;
+          padding: 1rem 1.25rem;
+          border: 1px solid rgba(13,122,58,0.12);
+          box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+          margin-bottom: 1rem;
+        }
+        .personnel-dash-header-icon {
+          width: 2.5rem;
+          height: 2.5rem;
+          min-width: 2.5rem;
+          min-height: 2.5rem;
+          border-radius: 50%;
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(15, 23, 42, 0.06);
+          color: var(--primary-color);
+          border: 1px solid rgba(13, 122, 58, 0.15);
+        }
+        .personnel-dash-header-icon svg {
+          width: 1rem;
+          height: 1rem;
+        }
+        .personnel-dash-chip {
+          display: inline-flex;
+          align-items: center;
+          padding: 0.2rem 0.55rem;
+          border-radius: 999px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: var(--primary-color);
+          background-color: rgba(13,122,58,0.08);
+        }
+        .personnel-dash-stat-card {
+          border-radius: 0.75rem;
+          border: 1px solid rgba(148, 163, 184, 0.35);
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+        }
+        .personnel-dash-stat-label {
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          color: var(--text-muted);
+        }
+        .personnel-dash-stat-value {
+          font-size: 1.5rem;
+          font-weight: 700;
+          color: var(--text-primary);
+        }
+        .personnel-dash-stat-icon {
+          width: 2.4rem;
+          height: 2.4rem;
+          border-radius: 999px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(15,23,42,0.04);
+          color: var(--primary-color);
+        }
+        .personnel-dash-actions .btn {
+          transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, color 0.15s ease;
+        }
+        .personnel-dash-actions .btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 10px rgba(15,23,42,0.18);
+          background-color: var(--primary-color);
+          color: #ffffff;
+        }
+        .personnel-dash-recent-card {
+          border-radius: 0.5rem;
+          border: 1px solid rgba(13,122,58,0.12);
+          box-shadow: 0 2px 8px rgba(15,23,42,0.06);
+        }
+        .personnel-dash-recent-card .card-header {
+          background: linear-gradient(135deg, rgba(13,122,58,0.05), rgba(13,122,58,0.1));
+          border-bottom: 1px solid rgba(13,122,58,0.12);
+          color: var(--text-primary);
+          font-weight: 600;
+          font-size: 0.9rem;
+          padding: 0.75rem 1rem;
+          border-radius: 0.5rem 0.5rem 0 0;
+        }
+        .personnel-dash-recent-card .gov-list-table thead th {
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          color: var(--text-primary);
+        }
+        .personnel-dash-recent-card .table tbody tr:hover {
+          background-color: rgba(13,122,58,0.04);
+        }
+        .personnel-dash-recent-card .table td {
+          border-bottom: 1px solid rgba(0,0,0,0.06);
+        }
+        .personnel-dash-recent-btn {
+          border-radius: 0;
+          border: 1px solid var(--primary-color);
+          background: var(--primary-color);
+          color: #fff;
+          padding: 0.35rem 0.75rem;
+          font-size: 0.8rem;
+          transition: background-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .personnel-dash-recent-btn:hover {
+          background: #0a6b2d;
+          color: #fff;
+          box-shadow: 0 2px 6px rgba(13,122,58,0.25);
+        }
+        .personnel-dash-recent-card .personnel-dash-recent-btn-edit:hover {
+          background: #92400e !important;
+          border-color: #92400e !important;
+          color: #fff;
+          box-shadow: 0 2px 6px rgba(180,83,9,0.25);
+        }
+        @media (max-width: 767.98px) {
+          .personnel-dash-recent-card .personnel-dash-recent-table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+          .personnel-dash-recent-card .personnel-dash-recent-table {
+            min-width: 520px;
+          }
+          .personnel-dash-recent-card .personnel-dash-recent-table thead th,
+          .personnel-dash-recent-card .personnel-dash-recent-table tbody td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: middle;
+          }
+          .personnel-dash-recent-card .personnel-dash-recent-table td.personnel-dash-recent-cell-purpose {
+            max-width: 180px;
+          }
+          .personnel-dash-recent-card .personnel-dash-recent-table tbody td[colspan] {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+          }
+        }
+        @media (max-width: 575.98px) {
+          .personnel-dash-header {
+            padding: 0.85rem 0.9rem;
+          }
+        }
+      `}</style>
 
-        <div className="d-flex gap-2 w-100 w-lg-auto justify-content-start justify-content-lg-end flex-wrap">
-          <button
-            className="btn btn-sm d-flex align-items-center"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            style={{
-              transition: "all 0.2s ease-in-out",
-              border: "2px solid var(--primary-color)",
-              color: "var(--primary-color)",
-              backgroundColor: "transparent",
-            }}
-            onMouseEnter={(e) => {
-              if (refreshing) return;
-              e.currentTarget.style.backgroundColor = "#f3f4f6";
-              e.currentTarget.style.boxShadow = "0 3px 10px rgba(15, 23, 42, 0.12)";
-              e.currentTarget.style.transform = "translateY(-1px)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
-              e.currentTarget.style.boxShadow = "none";
-              e.currentTarget.style.transform = "translateY(0)";
-            }}
-          >
-            {refreshing ? (
-              <>
-                <span className="spinner-border spinner-border-sm me-2" />
-                Refreshing
-              </>
-            ) : (
-              <>
-                <FaSyncAlt className="me-2" />
-                Refresh
-              </>
-            )}
-          </button>
+      <div className="personnel-dash-shell">
+        {/* Page Header */}
+        <div className="personnel-dash-header d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3">
+          <div>
+            <div className="d-flex align-items-center gap-3 mb-1">
+              <div className="personnel-dash-header-icon">
+                <FaThLarge />
+              </div>
+              <div>
+                <h1
+                  className="h5 mb-0 fw-bold"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Overview
+                </h1>
+                <p
+                  className="mb-0 small"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  {user?.name
+                    ? `Welcome back, ${user.name.split(" ")[0]}.`
+                    : "Welcome back."}{" "}
+                  Monitor and manage your travel orders in one place.
+                </p>
+              </div>
+            </div>
+            <div className="mt-2">
+              <span className="personnel-dash-chip me-2">
+                <FaFileAlt className="me-1" />
+                Travel orders overview
+              </span>
+            </div>
+          </div>
 
-          {quickActions.map((action) => (
+          <div className="personnel-dash-actions d-flex gap-2 w-100 w-lg-auto justify-content-start justify-content-lg-end flex-wrap">
             <button
-              key={action.label}
               className="btn btn-sm d-flex align-items-center"
-              style={getQuickActionStyle(action)}
-              onClick={() => navigate(action.route)}
-              onMouseEnter={(e) => handleQuickActionHover(e, action, true)}
-              onMouseLeave={(e) => handleQuickActionHover(e, action, false)}
+              onClick={handleRefresh}
+              disabled={refreshing}
+              style={{
+                borderRadius: "0",
+                border: "1px solid var(--primary-color)",
+                color: "#ffffff",
+                backgroundColor: "var(--primary-color)",
+                paddingInline: "0.9rem",
+                boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
+              }}
             >
-              <action.icon className="me-2" />
-              {action.label}
+              {refreshing ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" />
+                  Refreshing
+                </>
+              ) : (
+                <>
+                  <FaSyncAlt className="me-2" />
+                  Refresh
+                </>
+              )}
             </button>
-          ))}
+            {quickActions.map((action) => (
+              <button
+                key={action.label}
+                className="btn btn-sm d-flex align-items-center"
+                style={getQuickActionStyle(action)}
+                onClick={() => navigate(action.route)}
+              >
+                <action.icon className="me-2" />
+                {action.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
 
-      {/* Main Stats Overview (same style behavior as ICT Admin) */}
-      <div className="row g-3 mb-4">
-        <div className="col-xl-3 col-md-6">
-          <div className="card bg-primary text-white mb-3" style={{ borderRadius: "10px" }}>
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-center">
+        {/* Main Stats Overview */}
+        <div className="row g-3 mb-4">
+          <div className="col-xl-3 col-md-6">
+            <div className="card personnel-dash-stat-card">
+              <div className="card-body py-3 px-3 d-flex justify-content-between align-items-center">
                 <div>
-                  <div className="text-white-50 small">Total Orders</div>
+                  <div className="personnel-dash-stat-label">Total orders</div>
                   <div
-                    className="h4 fw-bold my-1"
-                    style={{ cursor: "pointer", transition: "opacity 0.2s ease-in-out" }}
-                    onClick={() => handleNumberClick("Total Orders", stats.total)}
-                    onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
-                    onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+                    className="personnel-dash-stat-value my-1"
+                    onClick={() =>
+                      handleNumberClick("Total orders", stats.total)
+                    }
+                    style={{ cursor: "pointer" }}
                   >
                     {abbreviateNumber(stats.total)}
                   </div>
-                  <small className="text-white-50 d-block mt-1" style={{ fontSize: "0.7rem" }}>
-                    <i className="fas fa-info-circle me-1"></i>
-                    Click number to view full value
+                  <small className="text-muted" style={{ fontSize: "0.7rem" }}>
+                    Click the number to view full value.
                   </small>
                 </div>
-                <div className="rounded-circle bg-white bg-opacity-25 p-3">
-                  <FaFileAlt size={22} />
+                <div className="personnel-dash-stat-icon">
+                  <FaFileAlt size={18} />
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="col-xl-3 col-md-6">
-          <div className="card bg-secondary text-white mb-3" style={{ borderRadius: "10px" }}>
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-center">
+          <div className="col-xl-3 col-md-6">
+            <div className="card personnel-dash-stat-card">
+              <div className="card-body py-3 px-3 d-flex justify-content-between align-items-center">
                 <div>
-                  <div className="text-white-50 small">Drafts</div>
+                  <div className="personnel-dash-stat-label">Drafts</div>
                   <div
-                    className="h4 fw-bold my-1"
-                    style={{ cursor: "pointer", transition: "opacity 0.2s ease-in-out" }}
-                    onClick={() => handleNumberClick("Draft Orders", stats.draft)}
-                    onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
-                    onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+                    className="personnel-dash-stat-value my-1"
+                    onClick={() =>
+                      handleNumberClick("Draft orders", stats.draft)
+                    }
+                    style={{ cursor: "pointer" }}
                   >
                     {abbreviateNumber(stats.draft)}
                   </div>
-                  <small className="text-white-50 d-block mt-1" style={{ fontSize: "0.7rem" }}>
-                    <i className="fas fa-info-circle me-1"></i>
-                    Click number to view full value
+                  <small className="text-muted" style={{ fontSize: "0.7rem" }}>
+                    Saved but not yet submitted.
                   </small>
                 </div>
-                <div className="rounded-circle bg-white bg-opacity-25 p-3">
-                  <FaFileAlt size={22} />
+                <div className="personnel-dash-stat-icon">
+                  <FaFileAlt size={18} />
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="col-xl-3 col-md-6">
-          <div className="card bg-warning text-white mb-3" style={{ borderRadius: "10px" }}>
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-center">
+          <div className="col-xl-3 col-md-6">
+            <div className="card personnel-dash-stat-card">
+              <div className="card-body py-3 px-3 d-flex justify-content-between align-items-center">
                 <div>
-                  <div className="text-white-50 small">Pending</div>
+                  <div className="personnel-dash-stat-label">Pending</div>
                   <div
-                    className="h4 fw-bold my-1"
-                    style={{ cursor: "pointer", transition: "opacity 0.2s ease-in-out" }}
-                    onClick={() => handleNumberClick("Pending Orders", stats.pending)}
-                    onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
-                    onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+                    className="personnel-dash-stat-value my-1"
+                    onClick={() =>
+                      handleNumberClick("Pending orders", stats.pending)
+                    }
+                    style={{ cursor: "pointer" }}
                   >
                     {abbreviateNumber(stats.pending)}
                   </div>
-                  <small className="text-white-50 d-block mt-1" style={{ fontSize: "0.7rem" }}>
-                    <i className="fas fa-info-circle me-1"></i>
-                    Click number to view full value
+                  <small className="text-muted" style={{ fontSize: "0.7rem" }}>
+                    Submitted and awaiting director action.
                   </small>
                 </div>
-                <div className="rounded-circle bg-white bg-opacity-25 p-3">
-                  <FaClock size={22} />
+                <div className="personnel-dash-stat-icon">
+                  <FaClock size={18} />
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="col-xl-3 col-md-6">
-          <div className="card bg-success text-white mb-3" style={{ borderRadius: "10px" }}>
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-center">
+          <div className="col-xl-3 col-md-6">
+            <div className="card personnel-dash-stat-card">
+              <div className="card-body py-3 px-3 d-flex justify-content-between align-items-center">
                 <div>
-                  <div className="text-white-50 small">Approved</div>
+                  <div className="personnel-dash-stat-label">Approved</div>
                   <div
-                    className="h4 fw-bold my-1"
-                    style={{ cursor: "pointer", transition: "opacity 0.2s ease-in-out" }}
-                    onClick={() => handleNumberClick("Approved Orders", stats.approved)}
-                    onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
-                    onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+                    className="personnel-dash-stat-value my-1"
+                    onClick={() =>
+                      handleNumberClick("Approved orders", stats.approved)
+                    }
+                    style={{ cursor: "pointer" }}
                   >
                     {abbreviateNumber(stats.approved)}
                   </div>
-                  <small className="text-white-50 d-block mt-1" style={{ fontSize: "0.7rem" }}>
-                    <i className="fas fa-info-circle me-1"></i>
-                    Click number to view full value
+                  <small className="text-muted" style={{ fontSize: "0.7rem" }}>
+                    Fully approved travel orders.
                   </small>
                 </div>
-                <div className="rounded-circle bg-white bg-opacity-25 p-3">
-                  <FaCheckCircle size={22} />
+                <div className="personnel-dash-stat-icon">
+                  <FaCheckCircle size={18} />
                 </div>
               </div>
             </div>
           </div>
         </div>
-
-        <div className="col-xl-3 col-md-6">
-          <div className="card bg-danger text-white mb-3" style={{ borderRadius: "10px" }}>
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <div className="text-white-50 small">Rejected</div>
-                  <div
-                    className="h4 fw-bold my-1"
-                    style={{ cursor: "pointer", transition: "opacity 0.2s ease-in-out" }}
-                    onClick={() => handleNumberClick("Rejected Orders", stats.rejected)}
-                    onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
-                    onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-                  >
-                    {abbreviateNumber(stats.rejected)}
-                  </div>
-                  <small className="text-white-50 d-block mt-1" style={{ fontSize: "0.7rem" }}>
-                    <i className="fas fa-info-circle me-1"></i>
-                    Click number to view full value
-                  </small>
-                </div>
-                <div className="rounded-circle bg-white bg-opacity-25 p-3">
-                  <FaTimesCircle size={22} />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Recent Travel Orders */}
-      <div className="card mb-4" style={{ borderRadius: "10px" }}>
-        <div className="card-header bg-white border-bottom-0 py-3 d-flex justify-content-between align-items-center">
-          <h5 className="card-title mb-0 text-dark d-flex align-items-center">
-            <FaFileAlt className="me-2 text-primary" />
+      <div className="card personnel-dash-recent-card mb-4">
+        <div className="card-header py-3 d-flex justify-content-between align-items-center">
+          <h5 className="card-title mb-0 d-flex align-items-center">
+            <FaFileAlt className="me-2" style={{ color: "var(--primary-color)" }} />
             Recent Travel Orders
           </h5>
-          <Link
-            to="/travel-orders"
-            className="btn btn-sm btn-outline-primary"
-            style={{ borderRadius: "6px" }}
-          >
+          <Link to="/travel-orders" className="btn btn-sm personnel-dash-recent-btn">
             View all
           </Link>
         </div>
@@ -485,22 +572,25 @@ const PersonnelDashboard = () => {
               <p className="mt-2 mb-0 small text-muted">Loading travel orders...</p>
             </div>
           ) : (
-            <div className="table-responsive">
-              <table className="table table-striped table-hover mb-0">
-                <thead
-                  style={{
-                    background: "var(--topbar-bg)",
-                    color: "var(--topbar-text)",
-                  }}
-                >
+            <div className="table-responsive gov-list-table-wrap travel-orders-table-wrap personnel-dash-recent-table-wrap">
+              <table className="table table-hover mb-0 gov-list-table travel-orders-table personnel-dash-recent-table">
+                <thead style={{ backgroundColor: "var(--background-light)" }}>
                   <tr>
-                    <th className="small fw-semibold" style={{ paddingLeft: "1rem" }}>
-                      Travel Purpose
+                    <th className="border-0 py-2 px-3 small fw-semibold text-start" style={{ color: "var(--text-primary)" }}>
+                      Travel purpose
                     </th>
-                    <th className="small fw-semibold">Destination</th>
-                    <th className="small fw-semibold">Dates</th>
-                    <th className="small fw-semibold">Status</th>
-                    <th className="small fw-semibold">Action</th>
+                    <th className="border-0 py-2 px-3 small fw-semibold text-start" style={{ color: "var(--text-primary)" }}>
+                      Destination
+                    </th>
+                    <th className="border-0 py-2 px-3 small fw-semibold text-start" style={{ color: "var(--text-primary)" }}>
+                      Dates
+                    </th>
+                    <th className="border-0 py-2 px-3 small fw-semibold text-start" style={{ color: "var(--text-primary)" }}>
+                      Status
+                    </th>
+                    <th className="border-0 py-2 px-3 small fw-semibold text-end" style={{ color: "var(--text-primary)" }}>
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -514,37 +604,27 @@ const PersonnelDashboard = () => {
                   ) : (
                     recentTravelOrders.map((order) => (
                       <tr key={order.id} className="align-middle">
-                        <td style={{ paddingLeft: "1rem", maxWidth: 200 }} className="text-truncate" title={order.travel_purpose}>
+                        <td className="py-2 px-3 small personnel-dash-recent-cell-purpose" style={{ color: "var(--text-primary)" }} title={order.travel_purpose}>
                           {order.travel_purpose}
                         </td>
-                        <td>{order.destination || "—"}</td>
-                        <td>
+                        <td className="py-2 px-3 small" style={{ color: "var(--text-primary)" }} title={order.destination || ""}>
+                          {order.destination || "—"}
+                        </td>
+                        <td className="py-2 px-3 small" style={{ color: "var(--text-muted)" }}>
                           {order.start_date && order.end_date
                             ? `${new Date(order.start_date).toLocaleDateString()} – ${new Date(order.end_date).toLocaleDateString()}`
                             : "—"}
                         </td>
-                        <td>{getStatusBadge(order.status)}</td>
-                        <td>
+                        <td className="py-2 px-3 small">{getStatusBadge(order.status)}</td>
+                        <td className="py-2 px-3 small text-end">
                           {order.status === "draft" ? (
                             <Link
                               to={`/travel-orders/${order.id}/edit`}
-                              className="btn btn-sm"
+                              className="btn btn-sm personnel-dash-recent-btn personnel-dash-recent-btn-edit"
                               style={{
-                                backgroundColor: "#d97706",
+                                backgroundColor: "#b45309",
+                                borderColor: "#b45309",
                                 color: "#fff",
-                                border: "1px solid #d97706",
-                                borderRadius: "6px",
-                                padding: "0.375rem 0.75rem",
-                                fontSize: "0.8rem",
-                                transition: "all 0.2s ease",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = "#b45309";
-                                e.currentTarget.style.borderColor = "#b45309";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = "#d97706";
-                                e.currentTarget.style.borderColor = "#d97706";
                               }}
                             >
                               Edit
@@ -552,8 +632,7 @@ const PersonnelDashboard = () => {
                           ) : (
                             <Link
                               to="/travel-orders"
-                              className="btn btn-sm btn-outline-primary"
-                              style={{ borderRadius: "6px", fontSize: "0.8rem" }}
+                              className="btn btn-sm personnel-dash-recent-btn"
                             >
                               View
                             </Link>
@@ -577,6 +656,7 @@ const PersonnelDashboard = () => {
           onClose={() => setNumberModal({ show: false, title: "", value: "" })}
         />
       )}
+      </div>
     </div>
   );
 };

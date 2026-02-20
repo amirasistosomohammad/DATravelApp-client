@@ -10,6 +10,10 @@ const Sidebar = ({ onCloseSidebar }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { blocking } = useUnsavedChanges();
+  
+  // Check if director has recommend role from user object (now included in /me endpoint)
+  // This is set when director logs in or when /me endpoint is called
+  const hasRecommendRole = user?.has_recommend_role === true;
 
   const isActiveLink = (href) => {
     // Normalize to avoid trailing slash mismatches
@@ -129,10 +133,20 @@ const Sidebar = ({ onCloseSidebar }) => {
       heading: "Reviews",
       items: [
         {
-          icon: "fas fa-check-circle",
+          icon: "fas fa-clock",
           label: "Pending Reviews",
           href: "/pending-reviews",
         },
+        // Only show "Recommended" tab for directors who have recommend role
+        ...(hasRecommendRole
+          ? [
+              {
+                icon: "fas fa-thumbs-up",
+                label: "Recommended",
+                href: "/recommended",
+              },
+            ]
+          : []),
         {
           icon: "fas fa-check-circle",
           label: "Approved",
@@ -158,6 +172,11 @@ const Sidebar = ({ onCloseSidebar }) => {
     {
       heading: "Profile",
       items: [
+        {
+          icon: "fas fa-user",
+          label: "Profile",
+          href: "/director/profile",
+        },
         {
           icon: "fas fa-pen-nib",
           label: "Digital signature",
@@ -191,10 +210,35 @@ const Sidebar = ({ onCloseSidebar }) => {
           label: "New Travel Order",
           href: "/travel-orders/create",
         },
+      ],
+    },
+    {
+      heading: "History",
+      items: [
         {
           icon: "fas fa-history",
           label: "History",
           href: "/travel-orders/history",
+        },
+      ],
+    },
+    {
+      heading: "Schedule",
+      items: [
+        {
+          icon: "fas fa-calendar-alt",
+          label: "Calendar",
+          href: "/calendar",
+        },
+      ],
+    },
+    {
+      heading: "Account",
+      items: [
+        {
+          icon: "fas fa-user",
+          label: "Profile",
+          href: "/profile",
         },
       ],
     },

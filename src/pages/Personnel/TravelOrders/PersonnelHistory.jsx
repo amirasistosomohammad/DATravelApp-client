@@ -1,0 +1,767 @@
+import React, { useState, useEffect, useCallback } from "react";
+import { FaHistory, FaSyncAlt, FaEye, FaSearch, FaTimes, FaEraser } from "react-icons/fa";
+import { toast } from "react-toastify";
+import { useAuth } from "../../../contexts/AuthContext";
+import LoadingSpinner from "../../../components/admin/LoadingSpinner";
+import ViewTravelOrderModal from "./ViewTravelOrderModal";
+
+const API_BASE_URL =
+  import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api";
+
+const DEFAULT_PAGE_SIZE = 10;
+const LOAD_ALL_PAGE_SIZE = 500;
+const PAGE_SIZE_OPTIONS = [5, 10, 25, 50];
+
+/** Build page number list for pagination, e.g. [1, "...", 4, 5, 6, "...", 10] */
+const getPageNumbers = (current, lastPage) => {
+  if (lastPage <= 7) {
+    return Array.from({ length: lastPage }, (_, i) => i + 1);
+  }
+  const pages = new Set([
+    1,
+    lastPage,
+    current,
+    current - 1,
+    current - 2,
+    current + 1,
+    current + 2,
+  ]);
+  const sorted = [...pages]
+    .filter((p) => p >= 1 && p <= lastPage)
+    .sort((a, b) => a - b);
+  const result = [];
+  let prev = 0;
+  for (const p of sorted) {
+    if (p - prev > 1) result.push("…");
+    result.push(p);
+    prev = p;
+  }
+  return result;
+};
+
+const PersonnelHistory = () => {
+  const { user } = useAuth();
+  const token = localStorage.getItem("token");
+
+  const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+  const [viewModalOrderId, setViewModalOrderId] = useState(null);
+
+  const fetchHistory = useCallback(async () => {
+    if (!token) {
+      toast.error("Authentication token missing. Please login again.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("per_page", String(LOAD_ALL_PAGE_SIZE));
+      params.set("page", "1");
+      const response = await fetch(
+        `${API_BASE_URL}/personnel/travel-orders/history?${params.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw data?.message || "Failed to load history";
+      }
+      const items = data?.data?.items ?? [];
+      setOrders(Array.isArray(items) ? items : []);
+    } catch (err) {
+      toast.error(
+        typeof err === "string" ? err : err?.message || "Failed to load"
+      );
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (user?.role === "personnel") {
+      fetchHistory();
+    }
+  }, [user?.role, fetchHistory]);
+
+  const formatDate = (d) => {
+    if (!d) return "—";
+    try {
+      return new Date(d).toLocaleDateString("en-PH", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return d;
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const styles = {
+      pending: {
+        backgroundColor: "rgba(255, 179, 0, 0.15)",
+        color: "#92400e",
+        border: "1px solid rgba(255, 179, 0, 0.35)",
+      },
+      approved: {
+        backgroundColor: "rgba(34, 197, 94, 0.18)",
+        color: "#14532d",
+        border: "1px solid rgba(34, 197, 94, 0.35)",
+      },
+      rejected: {
+        backgroundColor: "rgba(248, 113, 113, 0.16)",
+        color: "#7f1d1d",
+        border: "1px solid rgba(248, 113, 113, 0.35)",
+      },
+    };
+    const s = styles[status] || styles.pending;
+    return (
+      <span
+        className="badge px-2 py-1 fw-semibold"
+        style={{
+          ...s,
+          fontSize: "0.75rem",
+          borderRadius: "6px",
+        }}
+      >
+        {status ? status.charAt(0).toUpperCase() + status.slice(1) : "—"}
+      </span>
+    );
+  };
+
+  const btnOutline = {
+    transition: "all 0.2s ease-in-out",
+    border: "2px solid var(--primary-color)",
+    color: "var(--primary-color)",
+    backgroundColor: "transparent",
+    borderRadius: "4px",
+  };
+
+  const filteredBySearch = searchTerm.trim()
+    ? orders.filter((o) => {
+        const term = searchTerm.toLowerCase();
+        return (
+          (o.travel_purpose || "").toLowerCase().includes(term) ||
+          (o.destination || "").toLowerCase().includes(term)
+        );
+      })
+    : orders;
+
+  const filteredByDate =
+    filterDateFrom || filterDateTo
+      ? filteredBySearch.filter((o) => {
+          const start = (o.start_date || "").slice(0, 10);
+          const end = (o.end_date || "").slice(0, 10);
+          if (filterDateFrom && end < filterDateFrom) return false;
+          if (filterDateTo && start > filterDateTo) return false;
+          return true;
+        })
+      : filteredBySearch;
+
+  const filteredOrders =
+    filterStatus && filterStatus !== "all"
+      ? filteredByDate.filter((o) => o.status === filterStatus)
+      : filteredByDate;
+
+  const total = filteredOrders.length;
+  const lastPage = Math.max(1, Math.ceil(total / pageSize));
+  const from = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const to = Math.min(currentPage * pageSize, total);
+  const pageItems = filteredOrders.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterDateFrom, filterDateTo, filterStatus, pageSize]);
+
+  useEffect(() => {
+    if (currentPage > lastPage && lastPage >= 1) {
+      setCurrentPage(lastPage);
+    }
+  }, [currentPage, lastPage]);
+
+  const hasActiveFilters =
+    searchTerm.trim() !== "" ||
+    filterDateFrom !== "" ||
+    filterDateTo !== "" ||
+    (filterStatus && filterStatus !== "all");
+
+  const handlePageChange = (page) => {
+    if (page < 1 || page > lastPage) return;
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (e) => {
+    const value = Number(e.target.value);
+    if (PAGE_SIZE_OPTIONS.includes(value)) {
+      setPageSize(value);
+      setCurrentPage(1);
+    }
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
+    setFilterStatus("all");
+  };
+
+  if (loading && orders.length === 0) {
+    return (
+      <div className="container-fluid py-2">
+        <LoadingSpinner text="Loading history..." />
+      </div>
+    );
+  }
+
+  return (
+    <div className="container-fluid px-1 py-2 page-enter">
+      <style>{`
+        /* History table responsive behavior (match Travel Orders list feel) */
+        .personnel-history-table-wrap {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        .personnel-history-table {
+          border-collapse: collapse;
+        }
+        .personnel-history-table thead th {
+          white-space: nowrap;
+          vertical-align: middle;
+        }
+        .personnel-history-table tbody td {
+          vertical-align: middle;
+          white-space: nowrap;
+        }
+        .personnel-history-table .history-col-no {
+          width: 2.5rem;
+          min-width: 2.5rem;
+        }
+        .personnel-history-table .history-col-actions {
+          white-space: nowrap;
+          width: 3rem;
+          min-width: 3rem;
+        }
+        .personnel-history-table .history-col-purpose {
+          max-width: 260px;
+        }
+        .personnel-history-table .history-col-purpose .history-purpose-text {
+          display: inline-block;
+          max-width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          vertical-align: middle;
+        }
+        .personnel-history-table .history-col-destination {
+          max-width: 180px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .personnel-history-table .history-col-dates {
+          min-width: 11rem;
+        }
+        @media (max-width: 767.98px) {
+          .personnel-history-table .history-col-no {
+            position: sticky;
+            left: 0;
+            z-index: 1;
+            background: var(--bs-body-bg, #fff);
+            box-shadow: 2px 0 4px rgba(0,0,0,0.06);
+          }
+          .personnel-history-table thead .history-col-no {
+            background: var(--background-light, #f1f5f9) !important;
+          }
+          .personnel-history-table tbody tr:hover .history-col-no {
+            background: rgba(0,0,0,0.04);
+          }
+          .personnel-history-table .history-col-actions {
+            position: sticky;
+            left: 2.5rem;
+            z-index: 1;
+            background: var(--bs-body-bg, #fff);
+            box-shadow: 2px 0 4px rgba(0,0,0,0.06);
+          }
+          .personnel-history-table thead .history-col-actions {
+            background: var(--background-light, #f1f5f9) !important;
+          }
+        }
+        .personnel-history-filters-card .card-header {
+          background: linear-gradient(135deg, rgba(13,122,58,0.05), rgba(13,122,58,0.1));
+          border-bottom: 1px solid rgba(13,122,58,0.12);
+          color: var(--text-primary);
+          font-weight: 600;
+          font-size: 0.9rem;
+          padding: 0.6rem 1rem;
+          border-radius: 0.5rem 0.5rem 0 0;
+        }
+        .personnel-history-filters-card .card-body {
+          padding: 1rem;
+        }
+        .personnel-history-search-wrap .form-control {
+          border-radius: 0.375rem;
+          border-color: rgba(0,0,0,0.15);
+        }
+        .personnel-history-search-wrap .form-control:focus {
+          border-color: var(--primary-color);
+          box-shadow: 0 0 0 0.2rem rgba(13,122,58,0.15);
+        }
+        .personnel-history-search-wrap .input-group-text {
+          background: var(--background-light);
+          border-color: rgba(0,0,0,0.15);
+          border-radius: 0.375rem 0 0 0.375rem;
+          color: var(--text-muted);
+        }
+        .personnel-history-search-clear {
+          background: var(--background-light);
+          border: 1px solid rgba(0,0,0,0.15);
+          border-left: 0;
+          border-radius: 0 0.375rem 0.375rem 0;
+          color: var(--text-muted);
+          padding: 0.25rem 0.5rem;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          transition: color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+        }
+        .personnel-history-search-clear:hover {
+          color: var(--primary-color);
+          background: rgba(13,122,58,0.08);
+          transform: scale(1.05);
+        }
+      `}</style>
+      <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3">
+        <div className="flex-grow-1 mb-2 mb-md-0">
+          <h1
+            className="h4 mb-1 fw-bold"
+            style={{ color: "var(--text-primary)" }}
+          >
+            <FaHistory className="me-2" />
+            Travel order history
+          </h1>
+          <p className="mb-0 small" style={{ color: "var(--text-muted)" }}>
+            Previously submitted travel orders and their final status.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-sm"
+          style={btnOutline}
+          onClick={fetchHistory}
+          disabled={loading}
+        >
+          <FaSyncAlt className="me-1" /> Refresh
+        </button>
+      </div>
+
+      <div
+        className="card personnel-history-filters-card shadow-sm mb-3"
+        style={{ borderRadius: "0.5rem", border: "1px solid rgba(13,122,58,0.12)" }}
+      >
+        <div className="card-header d-flex align-items-center gap-2 py-2 px-3">
+          <FaSearch
+            style={{ fontSize: "0.85rem", color: "var(--primary-color)" }}
+          />
+          <span
+            className="fw-semibold"
+            style={{ color: "var(--text-primary)", fontSize: "0.9rem" }}
+          >
+            Filters
+          </span>
+          {hasActiveFilters && (
+            <span
+              className="badge rounded-pill bg-primary opacity-75"
+              style={{ fontSize: "0.65rem" }}
+            >
+              Active
+            </span>
+          )}
+        </div>
+        <div className="card-body pt-2 pb-3 px-3">
+          <div className="row g-3 align-items-end">
+            <div className="col-12 col-sm-6 col-lg-3">
+              <label
+                className="form-label small fw-semibold mb-1"
+                style={{ color: "var(--text-primary)" }}
+              >
+                Search
+              </label>
+              <div className="input-group input-group-sm personnel-history-search-wrap">
+                <span className="input-group-text">
+                  <FaSearch
+                    style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}
+                  />
+                </span>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Purpose or destination..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  aria-label="Search purpose or destination"
+                />
+                {searchTerm.length > 0 && (
+                  <button
+                    type="button"
+                    className="personnel-history-search-clear"
+                    onClick={() => setSearchTerm("")}
+                    aria-label="Clear search"
+                    title="Clear search"
+                  >
+                    <FaTimes style={{ fontSize: "0.8rem" }} />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="col-12 col-sm-6 col-lg-2">
+              <label
+                className="form-label small fw-semibold mb-1"
+                style={{ color: "var(--text-primary)" }}
+              >
+                Travel date from
+              </label>
+              <input
+                type="date"
+                className="form-control form-control-sm"
+                value={filterDateFrom}
+                onChange={(e) => setFilterDateFrom(e.target.value)}
+                style={{
+                  borderRadius: "0.375rem",
+                  borderColor: "rgba(0,0,0,0.15)",
+                }}
+                aria-label="Filter by travel start date"
+              />
+            </div>
+            <div className="col-12 col-sm-6 col-lg-2">
+              <label
+                className="form-label small fw-semibold mb-1"
+                style={{ color: "var(--text-primary)" }}
+              >
+                Travel date to
+              </label>
+              <input
+                type="date"
+                className="form-control form-control-sm"
+                value={filterDateTo}
+                onChange={(e) => setFilterDateTo(e.target.value)}
+                min={filterDateFrom || undefined}
+                style={{
+                  borderRadius: "0.375rem",
+                  borderColor: "rgba(0,0,0,0.15)",
+                }}
+                aria-label="Filter by travel end date"
+              />
+            </div>
+            <div className="col-12 col-sm-6 col-lg-2">
+              <label
+                className="form-label small fw-semibold mb-1"
+                style={{ color: "var(--text-primary)" }}
+              >
+                Status
+              </label>
+              <select
+                className="form-select form-select-sm"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                style={{
+                  borderRadius: "0.375rem",
+                  borderColor: "rgba(0,0,0,0.15)",
+                }}
+                aria-label="Filter by status"
+              >
+                <option value="all">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+            <div className="col-12 col-sm-6 col-lg-3 d-flex align-items-end">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-1"
+                onClick={handleClearFilters}
+                disabled={!hasActiveFilters}
+                title="Clear all filters"
+                aria-label="Clear all filters"
+                style={{
+                  borderRadius: "0.375rem",
+                  transition:
+                    "color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease",
+                }}
+              >
+                <FaEraser style={{ fontSize: "0.75rem" }} />
+                Clear filters
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card shadow-sm" style={{ borderRadius: "0.375rem" }}>
+        <div className="card-body p-0">
+          {filteredOrders.length === 0 ? (
+            <div
+              className="text-center py-5"
+              style={{ color: "var(--text-muted)" }}
+            >
+              <FaHistory className="mb-2" style={{ fontSize: "2rem" }} />
+              {orders.length === 0 ? (
+                <p className="mb-0">No history records found.</p>
+              ) : (
+                <>
+                  <p className="mb-1">
+                    No history records match your search or filters.
+                  </p>
+                  <p className="mb-0 small">
+                    Try clearing the search or adjusting filters to see other
+                    records.
+                  </p>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="table-responsive gov-list-table-wrap personnel-history-table-wrap">
+              <table className="table table-hover mb-0 gov-list-table personnel-history-table">
+                <thead style={{ backgroundColor: "var(--background-light)" }}>
+                  <tr>
+                    <th
+                      className="border-0 py-2 px-2 px-md-3 small fw-semibold text-center history-col-no"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      #
+                    </th>
+                    <th
+                      className="border-0 py-2 px-2 px-md-3 small fw-semibold text-center history-col-actions"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      Actions
+                    </th>
+                    <th
+                      className="border-0 py-2 px-2 px-md-3 small fw-semibold text-start history-col-purpose"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      Purpose
+                    </th>
+                    <th
+                      className="border-0 py-2 px-2 px-md-3 small fw-semibold text-start history-col-destination"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      Destination
+                    </th>
+                    <th
+                      className="border-0 py-2 px-2 px-md-3 small fw-semibold text-start history-col-dates"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      Dates
+                    </th>
+                    <th
+                      className="border-0 py-2 px-2 px-md-3 small fw-semibold text-center"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageItems.map((order, index) => {
+                    const rowNum = (currentPage - 1) * pageSize + index + 1;
+                    return (
+                      <tr key={order.id}>
+                      <td className="py-2 px-2 px-md-3 small text-center history-col-no" style={{ color: "var(--text-muted)", fontWeight: 800 }}>
+                        {rowNum}
+                      </td>
+                      <td className="py-2 px-2 px-md-3 text-center history-col-actions">
+                        <button
+                          type="button"
+                          className="btn btn-sm travel-orders-action-btn"
+                          style={{
+                            backgroundColor: "#1e3a5f",
+                            borderColor: "#1e3a5f",
+                            color: "#fff",
+                            width: "32px",
+                            height: "32px",
+                            borderRadius: "50%",
+                            padding: 0,
+                          }}
+                          title="View details"
+                          onClick={() => setViewModalOrderId(order.id)}
+                        >
+                          <FaEye style={{ fontSize: "0.75rem" }} />
+                        </button>
+                      </td>
+                      <td
+                        className="py-2 px-2 px-md-3 small history-col-purpose"
+                        style={{
+                          color: "var(--text-primary)",
+                        }}
+                        title={order.travel_purpose}
+                      >
+                        <span
+                          className="text-truncate d-inline-block history-purpose-text"
+                        >
+                          {order.travel_purpose}
+                        </span>
+                      </td>
+                      <td
+                        className="py-2 px-2 px-md-3 small history-col-destination"
+                        style={{ color: "var(--text-primary)" }}
+                        title={order.destination || ""}
+                      >
+                        {order.destination || "—"}
+                      </td>
+                      <td
+                        className="py-2 px-2 px-md-3 small history-col-dates"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        {formatDate(order.start_date)} –{" "}
+                        {formatDate(order.end_date)}
+                      </td>
+                      <td className="py-2 px-2 px-md-3 text-center">
+                        {getStatusBadge(order.status)}
+                      </td>
+                    </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {filteredOrders.length > 0 && (
+            <div className="card-footer bg-white border-top px-2 px-md-3 py-2 d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+              <div className="d-flex flex-wrap align-items-center gap-2">
+                <small style={{ color: "var(--text-muted)" }}>
+                  Showing <span className="fw-semibold">{from}</span>–
+                  <span className="fw-semibold">{to}</span> of{" "}
+                  <span className="fw-semibold">{total}</span>
+                </small>
+                <div className="d-flex align-items-center gap-1">
+                  <label
+                    htmlFor="personnel-history-per-page"
+                    className="small text-muted mb-0 me-1"
+                  >
+                    Per page
+                  </label>
+                  <select
+                    id="personnel-history-per-page"
+                    className="form-select form-select-sm"
+                    style={{ width: "auto" }}
+                    value={pageSize}
+                    onChange={handlePageSizeChange}
+                    aria-label="Rows per page"
+                  >
+                    {PAGE_SIZE_OPTIONS.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {lastPage > 1 && (
+                <nav
+                  className="d-flex align-items-center gap-1 flex-wrap justify-content-center"
+                  aria-label="History pagination"
+                >
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => handlePageChange(1)}
+                    disabled={currentPage <= 1}
+                    aria-label="First page"
+                    title="First page"
+                  >
+                    «
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage <= 1}
+                    aria-label="Previous page"
+                    title="Previous"
+                  >
+                    Prev
+                  </button>
+                  <div className="d-flex align-items-center gap-1 flex-wrap justify-content-center">
+                    {getPageNumbers(currentPage, lastPage).map((item, idx) =>
+                      item === "…" ? (
+                        <span
+                          key={`ellipsis-${idx}`}
+                          className="px-1 small text-muted"
+                          aria-hidden="true"
+                        >
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={item}
+                          type="button"
+                          className={`btn btn-sm btn-outline-secondary ${
+                            currentPage === item ? "active" : ""
+                          }`}
+                          onClick={() => handlePageChange(item)}
+                          disabled={currentPage === item}
+                          aria-label={`Page ${item}`}
+                          aria-current={
+                            currentPage === item ? "page" : undefined
+                          }
+                        >
+                          {item}
+                        </button>
+                      )
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage >= lastPage}
+                    aria-label="Next page"
+                    title="Next"
+                  >
+                    Next
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => handlePageChange(lastPage)}
+                    disabled={currentPage >= lastPage}
+                    aria-label="Last page"
+                    title="Last page"
+                  >
+                    »
+                  </button>
+                </nav>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {viewModalOrderId && (
+        <ViewTravelOrderModal
+          orderId={viewModalOrderId}
+          token={token}
+          onClose={() => setViewModalOrderId(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+export default PersonnelHistory;
+

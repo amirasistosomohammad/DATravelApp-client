@@ -1,5 +1,12 @@
 import Swal from "sweetalert2";
 
+const ensureSwalOnTop = () => {
+  // Our Bootstrap modals/backdrops in this app use z-index ~2060.
+  // SweetAlert2 defaults are lower, so force it above app modals.
+  const container = Swal.getContainer?.();
+  if (container) container.style.zIndex = "3000";
+};
+
 export const showAlert = {
   success: (title, text) => {
     return Swal.fire({
@@ -8,6 +15,7 @@ export const showAlert = {
       text: text,
       confirmButtonColor: "#0C8A3B",
       confirmButtonText: "OK",
+      didOpen: ensureSwalOnTop,
     });
   },
 
@@ -25,6 +33,7 @@ export const showAlert = {
         title: "small-alert-title",
         htmlContainer: "small-alert-content",
       },
+      didOpen: ensureSwalOnTop,
     });
   },
 
@@ -35,6 +44,7 @@ export const showAlert = {
       text: text,
       confirmButtonColor: "#F8C202",
       confirmButtonText: "OK",
+      didOpen: ensureSwalOnTop,
     });
   },
 
@@ -45,6 +55,7 @@ export const showAlert = {
       text: text,
       confirmButtonColor: "#0C8A3B",
       confirmButtonText: "OK",
+      didOpen: ensureSwalOnTop,
     });
   },
 
@@ -59,6 +70,7 @@ export const showAlert = {
       confirmButtonText: confirmText,
       cancelButtonText: cancelText,
       reverseButtons: true,
+      didOpen: ensureSwalOnTop,
     });
   },
 
@@ -80,6 +92,7 @@ export const showAlert = {
         container: "swal2-container-loading",
       },
       didOpen: () => {
+        ensureSwalOnTop();
         Swal.showLoading();
       },
     });
@@ -101,6 +114,7 @@ export const showAlert = {
         container: "swal2-container-loading",
       },
       didOpen: () => {
+        ensureSwalOnTop();
         Swal.showLoading();
       },
     });
