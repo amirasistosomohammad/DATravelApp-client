@@ -23,6 +23,8 @@ import SystemSettings from "./pages/ICTAdmin/Settings/SystemSettings";
 import TravelOrdersList from "./pages/Personnel/TravelOrders/TravelOrdersList";
 import TravelOrderForm from "./pages/Personnel/TravelOrders/TravelOrderForm";
 import PersonnelHistory from "./pages/Personnel/TravelOrders/PersonnelHistory";
+import AdminTravelOrdersList from "./pages/ICTAdmin/TravelOrders/AdminTravelOrdersList";
+import ReportsAnalytics from "./pages/ICTAdmin/Reports/ReportsAnalytics";
 import PersonnelProfile from "./pages/Personnel/PersonnelProfile/PersonnelProfile";
 import PersonnelCalendar from "./pages/Personnel/PersonnelCalendar/PersonnelCalendar";
 import PendingReviews from "./pages/HeadDirector/PendingReviews/PendingReviews";
@@ -68,6 +70,32 @@ const DashboardComponent = () => {
     return <DirectDashboard />;
   } else {
     return <PersonnelDashboard />;
+  }
+};
+
+// Role-based travel orders component
+const TravelOrdersComponent = () => {
+  const { user } = useAuth();
+
+  if (!user) return <Navigate to="/" replace />;
+
+  if (user.role === "ict_admin") {
+    return <AdminTravelOrdersList />;
+  } else {
+    return <TravelOrdersList />;
+  }
+};
+
+// Role-based reports component
+const ReportsComponent = () => {
+  const { user } = useAuth();
+
+  if (!user) return <Navigate to="/" replace />;
+
+  if (user.role === "ict_admin") {
+    return <ReportsAnalytics />;
+  } else {
+    return <InDevelopment label="Reports & analytics are in development." />;
   }
 };
 
@@ -121,19 +149,15 @@ const AppRoutes = () => {
           element={<TimeLogging />}
         />
 
-        {/* Personnel: Travel Orders (Phase 4) */}
-        <Route path="travel-orders" element={<TravelOrdersList />} />
+        {/* Travel Orders - Role-based routing */}
+        <Route path="travel-orders" element={<TravelOrdersComponent />} />
         <Route path="travel-orders/create" element={<TravelOrderForm />} />
         <Route path="travel-orders/:id/edit" element={<TravelOrderForm />} />
         <Route path="travel-orders/history" element={<PersonnelHistory />} />
         <Route path="calendar" element={<PersonnelCalendar />} />
         <Route path="profile" element={<PersonnelProfile />} />
-        <Route
-          path="reports"
-          element={
-            <InDevelopment label="Reports & analytics are in development." />
-          }
-        />
+        {/* Reports - Role-based routing */}
+        <Route path="reports" element={<ReportsComponent />} />
         <Route
           path="settings"
           element={

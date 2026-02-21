@@ -8,7 +8,7 @@ import { showAlert } from "../../../services/notificationService";
 const API_BASE_URL =
   import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api";
 
-const ViewTravelOrderModal = ({ orderId, token, onClose }) => {
+const ViewTravelOrderModal = ({ orderId, token, onClose, apiPrefix = "personnel" }) => {
   const [isClosing, setIsClosing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -32,7 +32,7 @@ const ViewTravelOrderModal = ({ orderId, token, onClose }) => {
     setLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE_URL}/personnel/travel-orders/${orderId}`,
+        `${API_BASE_URL}/${apiPrefix}/travel-orders/${orderId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -49,7 +49,7 @@ const ViewTravelOrderModal = ({ orderId, token, onClose }) => {
     } finally {
       setLoading(false);
     }
-  }, [orderId, token]);
+  }, [orderId, token, apiPrefix, handleClose]);
 
   useEffect(() => {
     fetchOrder();
@@ -60,7 +60,7 @@ const ViewTravelOrderModal = ({ orderId, token, onClose }) => {
       if (!token) return;
       try {
         const response = await fetch(
-          `${API_BASE_URL}/personnel/travel-order-attachments/${attachmentId}/download`,
+          `${API_BASE_URL}/${apiPrefix}/travel-order-attachments/${attachmentId}/download`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!response.ok) throw new Error("Download failed");
@@ -77,7 +77,7 @@ const ViewTravelOrderModal = ({ orderId, token, onClose }) => {
         toast.error("Failed to download file.");
       }
     },
-    [token]
+    [token, apiPrefix]
   );
 
   const downloadPdf = useCallback(
@@ -86,7 +86,7 @@ const ViewTravelOrderModal = ({ orderId, token, onClose }) => {
       setExporting(true);
       showAlert.loadingWithOverlay(includeCtt ? "Generating TO + CTT PDF..." : "Generating TO PDF...");
       try {
-        const url = `${API_BASE_URL}/personnel/travel-orders/${orderId}/export/pdf${includeCtt ? "?include_ctt=1" : ""}`;
+        const url = `${API_BASE_URL}/${apiPrefix}/travel-orders/${orderId}/export/pdf${includeCtt ? "?include_ctt=1" : ""}`;
         const response = await fetch(url, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -121,7 +121,7 @@ const ViewTravelOrderModal = ({ orderId, token, onClose }) => {
         setExporting(false);
       }
     },
-    [orderId, token]
+    [orderId, token, apiPrefix]
   );
 
   const downloadExcel = useCallback(
@@ -130,7 +130,7 @@ const ViewTravelOrderModal = ({ orderId, token, onClose }) => {
       setExporting(true);
       showAlert.loadingWithOverlay("Generating Excel Travel Order...");
       try {
-        const url = `${API_BASE_URL}/personnel/travel-orders/${orderId}/export/excel`;
+        const url = `${API_BASE_URL}/${apiPrefix}/travel-orders/${orderId}/export/excel`;
         const response = await fetch(url, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -172,7 +172,7 @@ const ViewTravelOrderModal = ({ orderId, token, onClose }) => {
         setExporting(false);
       }
     },
-    [orderId, token]
+    [orderId, token, apiPrefix]
   );
 
   const formatDate = (d) => {
