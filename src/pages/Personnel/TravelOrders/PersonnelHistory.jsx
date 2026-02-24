@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import { useAuth } from "../../../contexts/AuthContext";
 import LoadingSpinner from "../../../components/admin/LoadingSpinner";
 import ViewTravelOrderModal from "./ViewTravelOrderModal";
+import EditTravelOrderModal from "./EditTravelOrderModal";
 
 const API_BASE_URL =
   import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api";
@@ -52,6 +53,7 @@ const PersonnelHistory = () => {
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [viewModalOrderId, setViewModalOrderId] = useState(null);
+  const [editModalOrderId, setEditModalOrderId] = useState(null);
 
   const fetchHistory = useCallback(async () => {
     if (!token) {
@@ -123,6 +125,11 @@ const PersonnelHistory = () => {
         backgroundColor: "rgba(248, 113, 113, 0.16)",
         color: "#7f1d1d",
         border: "1px solid rgba(248, 113, 113, 0.35)",
+      },
+      cancelled: {
+        backgroundColor: "rgba(108, 117, 125, 0.18)",
+        color: "#495057",
+        border: "1px solid rgba(108, 117, 125, 0.35)",
       },
     };
     const s = styles[status] || styles.pending;
@@ -486,6 +493,7 @@ const PersonnelHistory = () => {
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
+                <option value="cancelled">Cancelled</option>
               </select>
             </div>
             <div className="col-12 col-sm-6 col-lg-3 d-flex align-items-end">
@@ -752,11 +760,22 @@ const PersonnelHistory = () => {
         </div>
       </div>
 
+      {editModalOrderId && (
+        <EditTravelOrderModal
+          orderId={editModalOrderId}
+          token={token}
+          onClose={() => setEditModalOrderId(null)}
+          onSuccess={fetchOrders}
+        />
+      )}
+
       {viewModalOrderId && (
         <ViewTravelOrderModal
           orderId={viewModalOrderId}
           token={token}
           onClose={() => setViewModalOrderId(null)}
+          currentUserPersonnelId={user?.id}
+          onEditClick={(id) => { setViewModalOrderId(null); setEditModalOrderId(id); }}
         />
       )}
     </div>

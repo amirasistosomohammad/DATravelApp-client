@@ -213,12 +213,12 @@ const Sidebar = ({ onCloseSidebar }) => {
       ],
     },
     {
-      heading: "History",
+      heading: "Records",
       items: [
         {
-          icon: "fas fa-history",
-          label: "History",
-          href: "/travel-orders/history",
+          icon: "fas fa-users",
+          label: "Travel orders by department",
+          href: "/travel-orders/all-personnel",
         },
       ],
     },

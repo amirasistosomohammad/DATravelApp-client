@@ -11,6 +11,8 @@ const API_BASE_URL =
   import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api";
 
 const DEFAULT_FORM = {
+  to_name: "",
+  to_position: "",
   travel_purpose: "",
   destination: "",
   official_station: "",
@@ -78,7 +80,12 @@ const TravelOrderForm = () => {
         navigate("/travel-orders");
         return;
       }
+      const personnelName = order.personnel
+        ? [order.personnel.first_name, order.personnel.middle_name, order.personnel.last_name].filter(Boolean).join(" ")
+        : user?.name ?? "";
       const loaded = {
+        to_name: order.to_name ?? personnelName,
+        to_position: order.to_position ?? order.personnel?.position ?? user?.position ?? "",
         travel_purpose: order.travel_purpose ?? "",
         destination: order.destination ?? "",
         official_station: order.official_station ?? "",
@@ -112,13 +119,24 @@ const TravelOrderForm = () => {
     if (isEdit) fetchOrder();
   }, [isEdit, fetchOrder]);
 
+  const hasSetDefaultNameRef = useRef(false);
   useEffect(() => {
-    if (!isEdit) initialFormDataRef.current = { ...DEFAULT_FORM };
-  }, [isEdit]);
+    if (!isEdit && user?.role === "personnel" && (user?.name != null || user?.position != null) && !hasSetDefaultNameRef.current) {
+      hasSetDefaultNameRef.current = true;
+      const defaultWithUser = {
+        to_name: user?.name ?? "",
+        to_position: user?.position ?? "",
+      };
+      initialFormDataRef.current = { ...(initialFormDataRef.current || DEFAULT_FORM), ...defaultWithUser };
+      setFormData((prev) => ({ ...prev, ...defaultWithUser }));
+    }
+  }, [isEdit, user?.name, user?.position, user?.role]);
 
   const formDataEquals = (a, b) => {
     if (!a || !b) return false;
     const keys = [
+      "to_name",
+      "to_position",
       "travel_purpose",
       "destination",
       "official_station",
@@ -171,6 +189,7 @@ const TravelOrderForm = () => {
 
   const computeErrors = (data) => {
     const e = {};
+    if (!data.to_name?.trim()) e.to_name = "Name is required.";
     if (!data.travel_purpose?.trim())
       e.travel_purpose = "Travel purpose is required.";
     if (!data.destination?.trim()) e.destination = "Destination is required.";
@@ -296,6 +315,8 @@ const TravelOrderForm = () => {
 
   const buildPayload = () => {
     const payload = new FormData();
+    payload.append("to_name", formData.to_name.trim());
+    if (formData.to_position != null) payload.append("to_position", formData.to_position.trim());
     payload.append("travel_purpose", formData.travel_purpose.trim());
     payload.append("destination", formData.destination.trim());
     if (formData.official_station)
@@ -555,6 +576,47 @@ const TravelOrderForm = () => {
               </div>
               <div className="card-body">
                 <div className="row g-3">
+                  <div className="col-12 col-md-6">
+                    <label
+                      className="form-label small fw-semibold"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      Name <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="to_name"
+                      className={`form-control form-control-sm ${errors.to_name ? "is-invalid" : ""}`}
+                      placeholder="Enter full name"
+                      value={formData.to_name}
+                      onChange={handleChange}
+                      maxLength={255}
+                      style={{ borderRadius: "4px" }}
+                    />
+                    {errors.to_name && (
+                      <div className="invalid-feedback d-block">
+                        {errors.to_name}
+                      </div>
+                    )}
+                  </div>
+                  <div className="col-12 col-md-6">
+                    <label
+                      className="form-label small fw-semibold"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      Position / Designation
+                    </label>
+                    <input
+                      type="text"
+                      name="to_position"
+                      className="form-control form-control-sm"
+                      placeholder="Enter position or designation"
+                      value={formData.to_position}
+                      onChange={handleChange}
+                      maxLength={255}
+                      style={{ borderRadius: "4px" }}
+                    />
+                  </div>
                   <div className="col-12">
                     <label
                       className="form-label small fw-semibold"
@@ -565,7 +627,7 @@ const TravelOrderForm = () => {
                     <textarea
                       name="travel_purpose"
                       className={`form-control form-control-sm ${errors.travel_purpose ? "is-invalid" : ""}`}
-                      placeholder="Describe the official purpose of this travel, including meetings, trainings, or activities to be attended."
+                      placeholder="Enter travel purpose"
                       value={formData.travel_purpose}
                       onChange={handleChange}
                       maxLength={500}
@@ -589,7 +651,7 @@ const TravelOrderForm = () => {
                       type="text"
                       name="destination"
                       className={`form-control form-control-sm ${errors.destination ? "is-invalid" : ""}`}
-                      placeholder="City / municipality and province (e.g., Lakewood, Zamboanga del Sur)"
+                      placeholder="Enter destination"
                       value={formData.destination}
                       onChange={handleChange}
                       maxLength={255}
@@ -612,7 +674,7 @@ const TravelOrderForm = () => {
                       type="text"
                       name="official_station"
                       className="form-control form-control-sm"
-                      placeholder="Office or station (e.g., IPIL, Zamboanga Sibugay)"
+                      placeholder="Enter official station"
                       value={formData.official_station}
                       onChange={handleChange}
                       maxLength={255}
@@ -673,7 +735,7 @@ const TravelOrderForm = () => {
                       name="objectives"
                       className={`form-control form-control-sm ${errors.objectives ? "is-invalid" : ""}`}
                       rows={3}
-                      placeholder="List the specific objectives or expected outputs of the travel."
+                      placeholder="Enter objectives"
                       value={formData.objectives}
                       onChange={handleChange}
                       style={{ borderRadius: "4px" }}
@@ -696,7 +758,7 @@ const TravelOrderForm = () => {
                       type="number"
                       name="per_diems_expenses"
                       className={`form-control form-control-sm ${errors.per_diems_expenses ? "is-invalid" : ""}`}
-                      placeholder="Total amount to be charged (e.g., 800.00)"
+                      placeholder="Enter amount"
                       min={0}
                       step={0.01}
                       value={formData.per_diems_expenses}
@@ -720,7 +782,7 @@ const TravelOrderForm = () => {
                       type="text"
                       name="per_diems_note"
                       className="form-control form-control-sm"
-                      placeholder="Format or basis (e.g., 800.00 per day)"
+                      placeholder="Enter note or format"
                       value={formData.per_diems_note}
                       onChange={handleChange}
                       maxLength={255}
@@ -738,7 +800,7 @@ const TravelOrderForm = () => {
                       type="text"
                       name="appropriation"
                       className={`form-control form-control-sm ${errors.appropriation ? "is-invalid" : ""}`}
-                      placeholder="Funding source / chargeable account (e.g., DA-MIADP)"
+                      placeholder="Enter appropriation or chargeable account"
                       value={formData.appropriation}
                       onChange={handleChange}
                       maxLength={255}
@@ -761,7 +823,7 @@ const TravelOrderForm = () => {
                       type="text"
                       name="assistant_or_laborers_allowed"
                       className="form-control form-control-sm"
-                      placeholder='Indicate personnel allowed to assist, or "None" if not applicable.'
+                      placeholder="Enter if applicable"
                       value={formData.assistant_or_laborers_allowed}
                       onChange={handleChange}
                       maxLength={255}
@@ -779,7 +841,7 @@ const TravelOrderForm = () => {
                       name="remarks"
                       className="form-control form-control-sm"
                       rows={2}
-                      placeholder="Additional instructions or important notes, if any."
+                      placeholder="Enter remarks if any"
                       value={formData.remarks}
                       onChange={handleChange}
                       style={{ borderRadius: "4px" }}

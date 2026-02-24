@@ -22,7 +22,7 @@ import DirectorMembers from "./pages/ICTAdmin/DirectorMembers/DirectorMembers";
 import SystemSettings from "./pages/ICTAdmin/Settings/SystemSettings";
 import TravelOrdersList from "./pages/Personnel/TravelOrders/TravelOrdersList";
 import TravelOrderForm from "./pages/Personnel/TravelOrders/TravelOrderForm";
-import PersonnelHistory from "./pages/Personnel/TravelOrders/PersonnelHistory";
+import PersonnelAllTravelOrders from "./pages/Personnel/TravelOrders/PersonnelAllTravelOrders";
 import AdminTravelOrdersList from "./pages/ICTAdmin/TravelOrders/AdminTravelOrdersList";
 import ReportsAnalytics from "./pages/ICTAdmin/Reports/ReportsAnalytics";
 import PersonnelProfile from "./pages/Personnel/PersonnelProfile/PersonnelProfile";
@@ -153,7 +153,7 @@ const AppRoutes = () => {
         <Route path="travel-orders" element={<TravelOrdersComponent />} />
         <Route path="travel-orders/create" element={<TravelOrderForm />} />
         <Route path="travel-orders/:id/edit" element={<TravelOrderForm />} />
-        <Route path="travel-orders/history" element={<PersonnelHistory />} />
+        <Route path="travel-orders/all-personnel" element={<PersonnelAllTravelOrders />} />
         <Route path="calendar" element={<PersonnelCalendar />} />
         <Route path="profile" element={<PersonnelProfile />} />
         {/* Reports - Role-based routing */}

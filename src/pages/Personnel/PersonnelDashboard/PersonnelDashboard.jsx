@@ -139,13 +139,6 @@ const PersonnelDashboard = () => {
         variant: "outline",
         color: "var(--primary-color)",
       },
-      {
-        label: "History",
-        icon: FaHistory,
-        route: "/travel-orders/history",
-        variant: "outline",
-        color: "var(--primary-color)",
-      },
     ],
     []
   );

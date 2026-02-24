@@ -58,12 +58,33 @@ const DirectorHistory = ({ filterStatus = "all" }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterDepartment, setFilterDepartment] = useState("");
+  const [filterStatusTO, setFilterStatusTO] = useState("");
+  const [departments, setDepartments] = useState([]);
   const [viewModalOrder, setViewModalOrder] = useState(null);
 
+  const fetchDepartments = useCallback(async () => {
+    if (!token) return;
+    try {
+      const response = await fetch(`${API_BASE_URL}/departments`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+      const data = await response.json();
+      if (response.ok && data?.data?.departments) {
+        setDepartments(data.data.departments);
+      }
+    } catch {
+      // Non-blocking
+    }
+  }, [token]);
+
+  /** Load all data once per tab. Department/search/date filtering is client-side for instant UX. */
   const fetchHistory = useCallback(async () => {
     if (!token) return;
     setLoading(true);
-    // Clear previous orders immediately when switching tabs to prevent showing stale data
     setOrders([]);
     try {
       const params = new URLSearchParams();
@@ -97,16 +118,23 @@ const DirectorHistory = ({ filterStatus = "all" }) => {
     }
   }, [token, filterStatus]);
 
-  // Reset filters and pagination when filterStatus changes (before fetching)
+  // When switching tab (filterStatus), reset filters and refetch for that tab
   useEffect(() => {
     setCurrentPage(1);
     setSearchTerm("");
     setFilterDateFrom("");
     setFilterDateTo("");
-    // Clear orders immediately when filterStatus changes to prevent showing stale data
+    setFilterDepartment("");
+    setFilterStatusTO("");
     setOrders([]);
     setLoading(true);
   }, [filterStatus]);
+
+  useEffect(() => {
+    if (user?.role === "director") {
+      fetchDepartments();
+    }
+  }, [user?.role, fetchDepartments]);
 
   useEffect(() => {
     if (user?.role === "director") {
@@ -142,6 +170,7 @@ const DirectorHistory = ({ filterStatus = "all" }) => {
     const styles = {
       approved: { backgroundColor: "rgba(40, 167, 69, 0.15)", color: "#155724", border: "1px solid rgba(40, 167, 69, 0.35)" },
       rejected: { backgroundColor: "rgba(220, 53, 69, 0.15)", color: "#721c24", border: "1px solid rgba(220, 53, 69, 0.35)" },
+      cancelled: { backgroundColor: "rgba(108, 117, 125, 0.18)", color: "#495057", border: "1px solid rgba(108, 117, 125, 0.35)" },
     };
     const s = styles[status] || styles.approved;
     return (
@@ -175,8 +204,16 @@ const DirectorHistory = ({ filterStatus = "all" }) => {
     borderRadius: "4px",
   };
 
+  const filteredByDepartment = filterDepartment
+    ? orders.filter((o) => (o.personnel?.department || "") === filterDepartment)
+    : orders;
+
+  const filteredByStatus = filterStatusTO
+    ? filteredByDepartment.filter((o) => (o.status || "") === filterStatusTO)
+    : filteredByDepartment;
+
   const filteredBySearch = searchTerm.trim()
-    ? orders.filter((o) => {
+    ? filteredByStatus.filter((o) => {
         const term = searchTerm.toLowerCase();
         return (
           (o.travel_purpose || "").toLowerCase().includes(term) ||
@@ -184,7 +221,7 @@ const DirectorHistory = ({ filterStatus = "all" }) => {
           getPersonnelName(o.personnel).toLowerCase().includes(term)
         );
       })
-    : orders;
+    : filteredByStatus;
 
   const filteredOrders =
     filterDateFrom || filterDateTo
@@ -208,7 +245,7 @@ const DirectorHistory = ({ filterStatus = "all" }) => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterDateFrom, filterDateTo, pageSize, filterStatus]);
+  }, [searchTerm, filterDateFrom, filterDateTo, filterStatusTO, pageSize, filterStatus]);
 
   useEffect(() => {
     if (currentPage > lastPage && lastPage >= 1) {
@@ -220,6 +257,8 @@ const DirectorHistory = ({ filterStatus = "all" }) => {
     searchTerm.trim() !== "" ||
     filterDateFrom !== "" ||
     filterDateTo !== "" ||
+    (filterDepartment && filterDepartment !== "") ||
+    (filterStatusTO && filterStatusTO !== "") ||
     (filterStatus && filterStatus !== "all");
 
   const handlePageChange = (page) => {
@@ -239,7 +278,17 @@ const DirectorHistory = ({ filterStatus = "all" }) => {
     setSearchTerm("");
     setFilterDateFrom("");
     setFilterDateTo("");
+    setFilterDepartment("");
+    setFilterStatusTO("");
   };
+
+  const statusFilterOptions = [
+    { value: "", label: "All statuses" },
+    { value: "pending", label: "Pending" },
+    { value: "approved", label: "Approved" },
+    { value: "rejected", label: "Rejected" },
+    { value: "cancelled", label: "Cancelled" },
+  ];
 
   // Always show loading spinner when loading, regardless of orders.length
   // This prevents showing stale data from previous tab when switching
@@ -270,13 +319,15 @@ const DirectorHistory = ({ filterStatus = "all" }) => {
         }
         .director-history-container .director-history-table tbody td {
           vertical-align: middle;
-          max-height: 3.5rem;
+          max-height: 3.25rem;
           overflow: hidden;
           background: transparent;
+          line-height: 1.35;
         }
         .director-history-container .director-history-table tbody tr {
           background: #fff;
           position: relative;
+          height: 3.25rem;
         }
         .director-history-container .director-history-table tbody tr:hover {
           background: rgba(0,0,0,0.02);
@@ -567,7 +618,48 @@ const DirectorHistory = ({ filterStatus = "all" }) => {
         </div>
         <div className="card-body pt-2 pb-3 px-3">
           <div className="row g-3 align-items-end">
-            <div className="col-12 col-sm-6 col-lg-3">
+            <div className="col-12 col-sm-6 col-lg-2">
+              <label
+                className="form-label small fw-semibold mb-1"
+                style={{ color: "var(--text-primary)" }}
+              >
+                Department
+              </label>
+              <select
+                className="form-select form-select-sm"
+                value={filterDepartment}
+                onChange={(e) => setFilterDepartment(e.target.value)}
+                style={{ borderRadius: "0.375rem", borderColor: "rgba(0,0,0,0.15)" }}
+                aria-label="Filter by department"
+              >
+                <option value="">All departments</option>
+                {departments.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+            {filterStatus === "all" && (
+              <div className="col-12 col-sm-6 col-lg-2">
+                <label
+                  className="form-label small fw-semibold mb-1"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Status
+                </label>
+                <select
+                  className="form-select form-select-sm"
+                  value={filterStatusTO}
+                  onChange={(e) => setFilterStatusTO(e.target.value)}
+                  style={{ borderRadius: "0.375rem", borderColor: "rgba(0,0,0,0.15)" }}
+                  aria-label="Filter by travel order status"
+                >
+                  {statusFilterOptions.map((opt) => (
+                    <option key={opt.value || "all"} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className={filterStatus === "all" ? "col-12 col-sm-6 col-lg-2" : "col-12 col-sm-6 col-lg-3"}>
               <label
                 className="form-label small fw-semibold mb-1"
                 style={{ color: "var(--text-primary)" }}
@@ -630,7 +722,7 @@ const DirectorHistory = ({ filterStatus = "all" }) => {
                 min={filterDateFrom || undefined}
               />
             </div>
-            <div className="col-12 col-sm-6 col-lg-3 d-flex align-items-end">
+            <div className={filterStatus === "all" ? "col-12 col-sm-6 col-lg-2 d-flex align-items-end" : "col-12 col-sm-6 col-lg-3 d-flex align-items-end"}>
               <button
                 type="button"
                 className="btn btn-sm btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-1"

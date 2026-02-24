@@ -204,6 +204,11 @@ const TravelOrdersList = () => {
         color: "#721c24",
         border: "1px solid rgba(220, 53, 69, 0.35)",
       },
+      cancelled: {
+        backgroundColor: "rgba(108, 117, 125, 0.18)",
+        color: "#495057",
+        border: "1px solid rgba(108, 117, 125, 0.35)",
+      },
     };
     const s = styles[status] || styles.draft;
     return (
@@ -682,6 +687,7 @@ const TravelOrdersList = () => {
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
+                <option value="cancelled">Cancelled</option>
               </select>
             </div>
             <div className="col-12 col-sm-6 col-lg-2 d-flex align-items-end">
@@ -925,6 +931,8 @@ const TravelOrdersList = () => {
           orderId={viewModalOrderId}
           token={token}
           onClose={() => setViewModalOrderId(null)}
+          currentUserPersonnelId={user?.id}
+          onEditClick={(id) => { setViewModalOrderId(null); setEditModalOrderId(id); }}
         />
       )}
 

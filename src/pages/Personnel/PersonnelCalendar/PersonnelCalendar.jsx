@@ -27,6 +27,7 @@ import { toast } from "react-toastify";
 import { useAuth } from "../../../contexts/AuthContext";
 import LoadingSpinner from "../../../components/admin/LoadingSpinner";
 import ViewTravelOrderModal from "../TravelOrders/ViewTravelOrderModal";
+import EditTravelOrderModal from "../TravelOrders/EditTravelOrderModal";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 
 const API_BASE_URL =
@@ -59,6 +60,7 @@ const PersonnelCalendar = () => {
     return { start: startOfMonth(now), end: endOfMonth(now) };
   });
   const [viewModalOrderId, setViewModalOrderId] = useState(null);
+  const [editModalOrderId, setEditModalOrderId] = useState(null);
   const token = localStorage.getItem("token");
 
   const fetchCalendar = useCallback(
@@ -845,11 +847,22 @@ const PersonnelCalendar = () => {
           </div>
         </div>
 
+        {editModalOrderId && (
+          <EditTravelOrderModal
+            orderId={editModalOrderId}
+            token={token}
+            onClose={() => setEditModalOrderId(null)}
+            onSuccess={() => range.start && range.end && fetchCalendar(range.start, range.end)}
+          />
+        )}
+
         {viewModalOrderId && (
           <ViewTravelOrderModal
             orderId={viewModalOrderId}
             token={token}
             onClose={() => setViewModalOrderId(null)}
+            currentUserPersonnelId={user?.id}
+            onEditClick={(id) => { setViewModalOrderId(null); setEditModalOrderId(id); }}
           />
         )}
       </div>

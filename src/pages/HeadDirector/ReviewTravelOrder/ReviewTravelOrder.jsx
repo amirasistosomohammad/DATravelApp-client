@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { FaArrowLeft, FaPaperclip, FaCheck, FaTimes, FaThumbsUp, FaDownload } from "react-icons/fa";
+import { FaArrowLeft, FaPaperclip, FaCheck, FaTimes, FaThumbsUp, FaDownload, FaUser, FaCalendarAlt, FaBan } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { useAuth } from "../../../contexts/AuthContext";
 import LoadingSpinner from "../../../components/admin/LoadingSpinner";
@@ -113,6 +113,21 @@ const ReviewTravelOrder = () => {
     }
   };
 
+  const formatDateTime = (d) => {
+    if (!d) return "—";
+    try {
+      return new Date(d).toLocaleString("en-PH", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return d;
+    }
+  };
+
   const getPersonnelName = (p) => {
     if (!p) return "—";
     if (p.first_name && p.last_name) {
@@ -156,9 +171,13 @@ const ReviewTravelOrder = () => {
       ? "Approved"
       : order.status === "rejected"
       ? "Rejected"
+      : order.status === "cancelled"
+      ? "Cancelled"
       : "Draft";
 
-  const currentStepLabel = isRecommendStep
+  const currentStepLabel = order?.status === "cancelled"
+    ? "Cancelled"
+    : isRecommendStep
     ? "Recommending director step"
     : isApproveStep
     ? "Approving director step"
@@ -209,6 +228,10 @@ const ReviewTravelOrder = () => {
         .review-travel-order-container .rt-status-pill.rejected {
           background-color: rgba(248, 113, 113, 0.18);
           color: #7f1d1d;
+        }
+        .review-travel-order-container .rt-status-pill.cancelled {
+          background-color: rgba(108, 117, 125, 0.18);
+          color: #495057;
         }
         .review-travel-order-container .rt-card {
           border-radius: 0.5rem;
@@ -324,92 +347,194 @@ const ReviewTravelOrder = () => {
 
       <div className="row g-3">
         <div className="col-12 col-lg-8">
+          {/* Status & ID — same as personnel modal */}
+          <div className="mb-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span className="small text-muted">
+              Travel order ID {order.id} • Created {formatDateTime(order.created_at)}
+            </span>
+          </div>
+
+          {/* Name on travel order — same section as personnel modal */}
           <div className="card rt-card mb-3">
-            <div className="rt-card-header">Travel details</div>
+            <div className="rt-card-header d-flex align-items-center gap-2">
+              <FaUser className="opacity-75" />
+              Name on travel order
+            </div>
             <div className="card-body py-3">
               <div className="row g-3">
                 <div className="col-12 col-md-6">
-                  <div className="rt-label">Personnel</div>
+                  <div className="rt-label">Name</div>
+                  <div className="rt-value">
+                    {order.to_name || getPersonnelName(order.personnel) || "—"}
+                  </div>
+                </div>
+                <div className="col-12 col-md-6">
+                  <div className="rt-label">Position / Designation</div>
+                  <div className="rt-value">
+                    {order.to_position || order.personnel?.position || "—"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Trip details */}
+          <div className="card rt-card mb-3">
+            <div className="rt-card-header">Trip details</div>
+            <div className="card-body py-3">
+              <div className="row g-3">
+                <div className="col-12">
+                  <div className="rt-label">Travel purpose</div>
+                  <div className="rt-value" style={{ whiteSpace: "pre-line" }}>
+                    {order.travel_purpose || "—"}
+                  </div>
+                </div>
+                <div className="col-12 col-md-6">
+                  <div className="rt-label">Destination</div>
+                  <div className="rt-value">{order.destination || "—"}</div>
+                </div>
+                <div className="col-12 col-md-6">
+                  <div className="rt-label">Official station</div>
+                  <div className="rt-value">{order.official_station || "—"}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Travel dates */}
+          <div className="card rt-card mb-3">
+            <div className="rt-card-header">Travel dates</div>
+            <div className="card-body py-3">
+              <div className="row g-3">
+                <div className="col-6 col-md-3">
+                  <div className="rt-label">Start date</div>
+                  <div className="rt-value">{formatDate(order.start_date)}</div>
+                </div>
+                <div className="col-6 col-md-3">
+                  <div className="rt-label">End date</div>
+                  <div className="rt-value">{formatDate(order.end_date)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Objectives & budget — same fields as personnel modal */}
+          <div className="card rt-card mb-3">
+            <div className="rt-card-header">Objectives & budget</div>
+            <div className="card-body py-3">
+              <div className="row g-3">
+                <div className="col-12">
+                  <div className="rt-label">Objectives</div>
+                  <div className="rt-value" style={{ whiteSpace: "pre-wrap" }}>
+                    {order.objectives || "—"}
+                  </div>
+                </div>
+                <div className="col-12 col-md-6">
+                  <div className="rt-label">Per diems / expenses</div>
+                  <div className="rt-value">
+                    {order.per_diems_expenses != null && order.per_diems_expenses !== ""
+                      ? Number(order.per_diems_expenses).toLocaleString()
+                      : "—"}
+                  </div>
+                </div>
+                <div className="col-12 col-md-6">
+                  <div className="rt-label">Per diems note (format)</div>
+                  <div className="rt-value">{order.per_diems_note || "—"}</div>
+                </div>
+                <div className="col-12 col-md-6">
+                  <div className="rt-label">Appropriation</div>
+                  <div className="rt-value">{order.appropriation || "—"}</div>
+                </div>
+                <div className="col-12 col-md-6">
+                  <div className="rt-label">Assistant / laborers allowed</div>
+                  <div className="rt-value">
+                    {order.assistant_or_laborers_allowed || "—"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Remarks */}
+          {order.remarks && (
+            <div className="card rt-card mb-3">
+              <div className="rt-card-header">Remarks</div>
+              <div className="card-body py-3">
+                <div className="rt-value small" style={{ whiteSpace: "pre-wrap" }}>
+                  {order.remarks}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Submission — Created by & Submitted at, same as personnel modal */}
+          <div className="card rt-card mb-3">
+            <div className="rt-card-header d-flex align-items-center gap-2">
+              <FaUser className="opacity-75" />
+              Submission
+            </div>
+            <div className="card-body py-3">
+              <div className="row g-3">
+                <div className="col-12 col-md-6">
+                  <div className="rt-label">Created by</div>
                   <div className="rt-value">
                     {getPersonnelName(order.personnel)}
                   </div>
                 </div>
                 <div className="col-12 col-md-6">
-                  <div className="rt-label">Official station</div>
+                  <div className="rt-label d-flex align-items-center gap-1">
+                    <FaCalendarAlt className="opacity-75" />
+                    Submitted at
+                  </div>
                   <div className="rt-value">
-                    {order.official_station || "—"}
+                    {formatDateTime(order.submitted_at)}
                   </div>
                 </div>
-                <div className="col-12">
-                  <div className="rt-label">Purpose</div>
-                  <div
-                    className="rt-value"
-                    style={{ whiteSpace: "pre-line" }}
-                  >
-                    {order.travel_purpose}
-                  </div>
-                </div>
-                <div className="col-12 col-md-6">
-                  <div className="rt-label">Destination</div>
-                  <div className="rt-value">
-                    {order.destination || "—"}
-                  </div>
-                </div>
-                <div className="col-6 col-md-3">
-                  <div className="rt-label">Start date</div>
-                  <div className="rt-value">
-                    {formatDate(order.start_date)}
-                  </div>
-                </div>
-                <div className="col-6 col-md-3">
-                  <div className="rt-label">End date</div>
-                  <div className="rt-value">
-                    {formatDate(order.end_date)}
-                  </div>
-                </div>
-                {order.objectives && (
-                  <div className="col-12">
-                    <div className="rt-label">Objectives</div>
-                    <div className="rt-value">
-                      {order.objectives}
-                    </div>
-                  </div>
-                )}
-                {(order.per_diems_expenses != null &&
-                  order.per_diems_expenses !== "") && (
-                  <div className="col-12 col-md-4">
-                    <div className="rt-label">Per diems / expenses</div>
-                    <div className="rt-value">
-                      {order.per_diems_expenses}
-                    </div>
-                  </div>
-                )}
-                {order.appropriation && (
-                  <div className="col-12 col-md-4">
-                    <div className="rt-label">Appropriation</div>
-                    <div className="rt-value">
-                      {order.appropriation}
-                    </div>
-                  </div>
-                )}
-                {order.remarks && (
-                  <div className="col-12">
-                    <div className="rt-label">Personnel remarks</div>
-                    <div className="rt-value">
-                      {order.remarks}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>
 
-          {order.attachments && order.attachments.length > 0 && (
+          {/* Cancellation details — when TO is cancelled */}
+          {order.status === "cancelled" && (order.cancellation_remarks || order.cancelled_at) && (
             <div className="card rt-card mb-3">
-              <div className="rt-card-header d-flex align-items-center">
-                <FaPaperclip className="me-2" /> Attachments
+              <div className="rt-card-header d-flex align-items-center gap-2">
+                <FaBan className="opacity-75" />
+                Cancellation
               </div>
-              <div className="card-body py-2">
+              <div className="card-body py-3">
+                <div className="row g-3">
+                  {order.cancellation_remarks && (
+                    <div className="col-12">
+                      <div className="rt-label">Reason for cancellation</div>
+                      <div className="rt-value" style={{ whiteSpace: "pre-wrap" }}>
+                        {order.cancellation_remarks}
+                      </div>
+                    </div>
+                  )}
+                  {order.cancelled_at && (
+                    <div className="col-12 col-md-6">
+                      <div className="rt-label d-flex align-items-center gap-1">
+                        <FaCalendarAlt className="opacity-75" />
+                        Cancelled at
+                      </div>
+                      <div className="rt-value">
+                        {formatDateTime(order.cancelled_at)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Attachments — always shown, same as personnel modal */}
+          <div className="card rt-card mb-3">
+            <div className="rt-card-header d-flex align-items-center gap-2">
+              <FaPaperclip className="opacity-75" />
+              Attachments
+            </div>
+            <div className="card-body py-2">
+              {order.attachments && order.attachments.length > 0 ? (
                 <ul className="list-group list-group-flush rt-attachments-list">
                   {order.attachments.map((att) => (
                     <li
@@ -456,8 +581,17 @@ const ReviewTravelOrder = () => {
                     </li>
                   ))}
                 </ul>
-              </div>
+              ) : (
+                <p className="mb-0 small rt-muted">No attachments.</p>
+              )}
             </div>
+          </div>
+
+          {/* Last updated — same as personnel modal */}
+          {order.updated_at && (
+            <p className="mb-0 small rt-muted">
+              Last updated: {formatDateTime(order.updated_at)}
+            </p>
           )}
         </div>
 
@@ -503,28 +637,29 @@ const ReviewTravelOrder = () => {
             </div>
           </div>
 
-          <div className="card rt-card mb-3">
-            <div className="rt-card-header">Your decision</div>
-            <div className="card-body py-3">
-              <div className="mb-3">
-                <label className="form-label rt-label mb-1">
-                  Remarks (optional)
-                </label>
-                <textarea
-                  className="form-control form-control-sm"
-                  rows={3}
-                  placeholder="Add remarks or reason for your decision..."
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
-                  style={{ borderRadius: "0.5rem" }}
-                />
-                <div className="form-text rt-muted mt-1">
-                  These remarks will be visible to the personnel and other
-                  directors in the approval chain.
+          {order.status !== "cancelled" && currentApproval && (
+            <div className="card rt-card mb-3">
+              <div className="rt-card-header">Your decision</div>
+              <div className="card-body py-3">
+                <div className="mb-3">
+                  <label className="form-label rt-label mb-1">
+                    Remarks (optional)
+                  </label>
+                  <textarea
+                    className="form-control form-control-sm"
+                    rows={3}
+                    placeholder="Add remarks or reason for your decision..."
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    style={{ borderRadius: "0.5rem" }}
+                  />
+                  <div className="form-text rt-muted mt-1">
+                    These remarks will be visible to the personnel and other
+                    directors in the approval chain.
+                  </div>
                 </div>
-              </div>
-              <div className="d-flex flex-wrap gap-2 rt-actions">
-                {isRecommendStep && (
+                <div className="d-flex flex-wrap gap-2 rt-actions">
+                  {isRecommendStep && (
                   <button
                     type="button"
                     className="btn btn-sm text-white"
@@ -574,6 +709,7 @@ const ReviewTravelOrder = () => {
               </div>
             </div>
           </div>
+          )}
         </div>
       </div>
     </div>

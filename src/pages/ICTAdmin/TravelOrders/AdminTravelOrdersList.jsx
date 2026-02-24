@@ -53,9 +53,30 @@ const AdminTravelOrdersList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterDepartment, setFilterDepartment] = useState("");
+  const [departments, setDepartments] = useState([]);
   const [viewModalOrderId, setViewModalOrderId] = useState(null);
   const [numberModal, setNumberModal] = useState({ show: false, title: "", value: "" });
 
+  const fetchDepartments = useCallback(async () => {
+    if (!token) return;
+    try {
+      const response = await fetch(`${API_BASE_URL}/departments`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+      const data = await response.json();
+      if (response.ok && data?.data?.departments) {
+        setDepartments(data.data.departments);
+      }
+    } catch {
+      // Non-blocking
+    }
+  }, [token]);
+
+  /** Load all data once on mount / refresh. Filtering is client-side for instant UX. */
   const fetchOrders = useCallback(async () => {
     if (!token) {
       toast.error("Authentication token missing. Please login again.");
@@ -66,18 +87,6 @@ const AdminTravelOrdersList = () => {
       const params = new URLSearchParams();
       params.set("per_page", String(LOAD_ALL_PAGE_SIZE));
       params.set("page", "1");
-      if (filterStatus && filterStatus !== "all") {
-        params.set("status", filterStatus);
-      }
-      if (searchTerm.trim()) {
-        params.set("search", searchTerm.trim());
-      }
-      if (filterDateFrom) {
-        params.set("date_from", filterDateFrom);
-      }
-      if (filterDateTo) {
-        params.set("date_to", filterDateTo);
-      }
       const response = await fetch(
         `${API_BASE_URL}/ict-admin/travel-orders?${params.toString()}`,
         {
@@ -93,6 +102,7 @@ const AdminTravelOrdersList = () => {
       }
       const items = data?.data?.items ?? [];
       setOrders(Array.isArray(items) ? items : []);
+      setCurrentPage(1);
     } catch (err) {
       const msg =
         typeof err === "string"
@@ -103,7 +113,13 @@ const AdminTravelOrdersList = () => {
     } finally {
       setLoading(false);
     }
-  }, [token, filterStatus, searchTerm, filterDateFrom, filterDateTo]);
+  }, [token]);
+
+  useEffect(() => {
+    if (user?.role === "ict_admin") {
+      fetchDepartments();
+    }
+  }, [user?.role, fetchDepartments]);
 
   useEffect(() => {
     if (user?.role === "ict_admin") {
@@ -113,7 +129,7 @@ const AdminTravelOrdersList = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterDateFrom, filterDateTo, filterStatus]);
+  }, [searchTerm, filterDateFrom, filterDateTo, filterStatus, filterDepartment]);
 
   const handleRefresh = () => {
     fetchOrders();
@@ -125,6 +141,7 @@ const AdminTravelOrdersList = () => {
     setFilterDateFrom("");
     setFilterDateTo("");
     setFilterStatus("all");
+    setFilterDepartment("");
     setCurrentPage(1);
     toast.success("Filters cleared");
   };
@@ -164,6 +181,11 @@ const AdminTravelOrdersList = () => {
         color: "#721c24",
         border: "1px solid rgba(220, 53, 69, 0.35)",
       },
+      cancelled: {
+        backgroundColor: "rgba(108, 117, 125, 0.18)",
+        color: "#495057",
+        border: "1px solid rgba(108, 117, 125, 0.35)",
+      },
     };
     const s = styles[status] || styles.draft;
     return (
@@ -200,8 +222,39 @@ const AdminTravelOrdersList = () => {
     return personnel.name || personnel.username || "—";
   };
 
-  // Client-side filtering for pagination
-  const filteredOrders = orders;
+  // Client-side filtering (no refetch – instant)
+  const filteredByDepartment = filterDepartment
+    ? orders.filter((o) => (o.personnel?.department || "") === filterDepartment)
+    : orders;
+  const filteredByStatus =
+    filterStatus && filterStatus !== "all"
+      ? filteredByDepartment.filter((o) => o.status === filterStatus)
+      : filteredByDepartment;
+  const filteredBySearch = searchTerm.trim()
+    ? filteredByStatus.filter((o) => {
+        const term = searchTerm.toLowerCase();
+        const name = getPersonnelName(o.personnel).toLowerCase();
+        const position = (o.personnel?.position || "").toLowerCase();
+        const purpose = (o.travel_purpose || "").toLowerCase();
+        const dest = (o.destination || "").toLowerCase();
+        return (
+          name.includes(term) ||
+          position.includes(term) ||
+          purpose.includes(term) ||
+          dest.includes(term)
+        );
+      })
+    : filteredByStatus;
+  const filteredOrders =
+    filterDateFrom || filterDateTo
+      ? filteredBySearch.filter((o) => {
+          const start = (o.start_date || "").slice(0, 10);
+          const end = (o.end_date || "").slice(0, 10);
+          if (filterDateFrom && end < filterDateFrom) return false;
+          if (filterDateTo && start > filterDateTo) return false;
+          return true;
+        })
+      : filteredBySearch;
 
   const total = filteredOrders.length;
   const lastPage = Math.max(1, Math.ceil(total / pageSize));
@@ -216,7 +269,7 @@ const AdminTravelOrdersList = () => {
     if (currentPage > lastPage && lastPage >= 1) {
       setCurrentPage(lastPage);
     }
-  }, [total, pageSize, currentPage, lastPage]);
+  }, [currentPage, lastPage]);
 
   const handleNumberClick = (title, value) => {
     setNumberModal({ show: true, title, value: formatFullNumber(value) });
@@ -228,12 +281,14 @@ const AdminTravelOrdersList = () => {
     pending: filteredOrders.filter((o) => o.status === "pending").length,
     approved: filteredOrders.filter((o) => o.status === "approved").length,
     rejected: filteredOrders.filter((o) => o.status === "rejected").length,
+    cancelled: filteredOrders.filter((o) => o.status === "cancelled").length,
   };
 
   const hasActiveFilters =
     searchTerm.trim() !== "" ||
     filterDateFrom !== "" ||
     filterDateTo !== "" ||
+    (filterDepartment && filterDepartment !== "") ||
     (filterStatus && filterStatus !== "all");
 
   const btnBase = {
@@ -370,6 +425,8 @@ const AdminTravelOrdersList = () => {
         .travel-orders-table-wrap {
           overflow-x: auto;
           -webkit-overflow-scrolling: touch;
+          position: relative;
+          isolation: isolate;
         }
         .travel-orders-table {
           border-collapse: collapse;
@@ -380,6 +437,12 @@ const AdminTravelOrdersList = () => {
         }
         .travel-orders-table tbody td {
           vertical-align: middle;
+          max-height: 3.25rem;
+          overflow: hidden;
+          line-height: 1.35;
+        }
+        .travel-orders-table tbody tr {
+          height: 3.25rem;
         }
         .travel-orders-table .travel-orders-col-no {
           width: 2.5rem;
@@ -387,60 +450,85 @@ const AdminTravelOrdersList = () => {
         }
         .travel-orders-table .travel-orders-col-actions {
           white-space: nowrap;
+          width: 3rem;
+          min-width: 3rem;
         }
         .travel-orders-table .travel-orders-col-purpose {
-          white-space: nowrap;
           max-width: 200px;
+          min-width: 120px;
         }
         .travel-orders-table .travel-orders-col-purpose .travel-orders-purpose-text {
+          display: block;
           max-width: 100%;
-          display: inline-block;
           overflow: hidden;
           text-overflow: ellipsis;
-          vertical-align: middle;
+          white-space: nowrap;
         }
         .travel-orders-table .travel-orders-col-destination {
-          white-space: nowrap;
           max-width: 140px;
+          min-width: 80px;
+          overflow: hidden;
+        }
+        .travel-orders-table .travel-orders-col-destination .travel-orders-cell-truncate {
+          display: block;
           overflow: hidden;
           text-overflow: ellipsis;
+          white-space: nowrap;
         }
         .travel-orders-table .travel-orders-col-dates {
           white-space: nowrap;
           min-width: 11rem;
         }
         .travel-orders-table .travel-orders-col-personnel {
-          white-space: nowrap;
           max-width: 150px;
+          min-width: 90px;
+          overflow: hidden;
+        }
+        .travel-orders-table .travel-orders-col-personnel .travel-orders-cell-truncate {
+          display: block;
           overflow: hidden;
           text-overflow: ellipsis;
+          white-space: nowrap;
         }
         @media (max-width: 767.98px) {
+          .travel-orders-table tbody td:not(.travel-orders-col-no):not(.travel-orders-col-actions) {
+            position: relative;
+            z-index: 0;
+          }
           .travel-orders-table .travel-orders-col-no {
-            position: sticky;
-            left: 0;
-            z-index: 1;
-            background: var(--bs-body-bg, #fff);
+            position: sticky !important;
+            left: 0 !important;
+            z-index: 100 !important;
+            background: #fff !important;
             box-shadow: 2px 0 4px rgba(0,0,0,0.06);
+            isolation: isolate;
           }
           .travel-orders-table thead .travel-orders-col-no {
-            background: var(--background-light) !important;
+            background: var(--background-light, #f8fafc) !important;
+            z-index: 101 !important;
           }
           .travel-orders-table tbody tr:hover .travel-orders-col-no {
-            background: rgba(0,0,0,0.04);
+            background: rgba(0,0,0,0.04) !important;
           }
           .travel-orders-table .travel-orders-col-actions {
-            position: sticky;
-            left: 2.5rem;
-            z-index: 1;
-            background: var(--bs-body-bg, #fff);
+            position: sticky !important;
+            left: 2.5rem !important;
+            z-index: 100 !important;
+            background: #fff !important;
             box-shadow: 2px 0 4px rgba(0,0,0,0.06);
+            isolation: isolate;
           }
           .travel-orders-table thead .travel-orders-col-actions {
-            background: var(--background-light) !important;
+            background: var(--background-light, #f8fafc) !important;
+            z-index: 101 !important;
           }
           .travel-orders-table tbody tr:hover .travel-orders-col-actions {
-            background: rgba(0,0,0,0.04);
+            background: rgba(0,0,0,0.04) !important;
+          }
+          .travel-orders-table .travel-orders-col-actions .btn,
+          .travel-orders-table .travel-orders-col-actions button {
+            position: relative;
+            z-index: 1;
           }
         }
       `}</style>
@@ -624,6 +712,23 @@ const AdminTravelOrdersList = () => {
         </div>
         <div className="card-body pt-2 pb-3 px-3">
           <div className="row g-3 align-items-end">
+            <div className="col-12 col-sm-6 col-lg-2">
+              <label className="form-label small fw-semibold mb-1" style={{ color: "var(--text-primary)" }}>
+                Department
+              </label>
+              <select
+                className="form-select form-select-sm"
+                value={filterDepartment}
+                onChange={(e) => setFilterDepartment(e.target.value)}
+                style={{ borderRadius: "0.375rem", borderColor: "rgba(0,0,0,0.15)" }}
+                aria-label="Filter by department"
+              >
+                <option value="">All departments</option>
+                {departments.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
             <div className="col-12 col-sm-6 col-lg-3">
               <label className="form-label small fw-semibold mb-1" style={{ color: "var(--text-primary)" }}>
                 Search
@@ -635,7 +740,7 @@ const AdminTravelOrdersList = () => {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Purpose, destination, or personnel..."
+                  placeholder="Purpose, destination, name, or position..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   aria-label="Search purpose, destination, or personnel"
@@ -644,7 +749,10 @@ const AdminTravelOrdersList = () => {
                   <button
                     type="button"
                     className="travel-orders-search-clear"
-                    onClick={() => setSearchTerm("")}
+                    onClick={() => {
+                      setSearchTerm("");
+                      setCurrentPage(1);
+                    }}
                     aria-label="Clear search"
                     title="Clear search"
                   >
@@ -696,6 +804,7 @@ const AdminTravelOrdersList = () => {
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
+                <option value="cancelled">Cancelled</option>
               </select>
             </div>
             <div className="col-12 col-sm-6 col-lg-2 d-flex align-items-end">
@@ -771,13 +880,17 @@ const AdminTravelOrdersList = () => {
                           </button>
                         </td>
                         <td className="py-2 px-2 px-md-3 small text-start travel-orders-col-personnel" style={{ color: "var(--text-primary)" }} title={getPersonnelName(order.personnel)}>
-                          <FaUser className="me-1" style={{ fontSize: "0.7rem", color: "var(--text-muted)" }} />
-                          {getPersonnelName(order.personnel)}
+                          <span className="d-inline-flex align-items-center min-w-0" style={{ maxWidth: "100%" }}>
+                            <FaUser className="me-1 flex-shrink-0" style={{ fontSize: "0.7rem", color: "var(--text-muted)" }} />
+                            <span className="travel-orders-cell-truncate">{getPersonnelName(order.personnel)}</span>
+                          </span>
                         </td>
                         <td className="py-2 px-2 px-md-3 small text-start travel-orders-col-purpose" style={{ color: "var(--text-primary)" }} title={order.travel_purpose}>
-                          <span className="text-truncate d-inline-block travel-orders-purpose-text">{order.travel_purpose}</span>
+                          <span className="travel-orders-purpose-text">{order.travel_purpose}</span>
                         </td>
-                        <td className="py-2 px-2 px-md-3 small text-start travel-orders-col-destination" style={{ color: "var(--text-primary)" }} title={order.destination || ""}>{order.destination || "—"}</td>
+                        <td className="py-2 px-2 px-md-3 small text-start travel-orders-col-destination" style={{ color: "var(--text-primary)" }} title={order.destination || ""}>
+                          <span className="travel-orders-cell-truncate">{order.destination || "—"}</span>
+                        </td>
                         <td className="py-2 px-2 px-md-3 small text-start travel-orders-col-dates" style={{ color: "var(--text-muted)" }}>
                           {formatDate(order.start_date)} – {formatDate(order.end_date)}
                         </td>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { FaEye, FaPaperclip, FaDownload, FaUser, FaCalendarAlt, FaCheckCircle, FaFileExcel } from "react-icons/fa";
+import { FaEye, FaPaperclip, FaDownload, FaUser, FaCalendarAlt, FaCheckCircle, FaFileExcel, FaBan } from "react-icons/fa";
 import { toast } from "react-toastify";
 import Portal from "../../../components/Portal";
 import LoadingSpinner from "../../../components/admin/LoadingSpinner";
@@ -184,7 +184,7 @@ const DirectorViewTravelOrderModal = ({ order: orderProp, orderId, token, onClos
   };
 
   const getStatusLabel = (status) => {
-    const map = { pending: "Pending", recommended: "Recommended", approved: "Approved", rejected: "Rejected" };
+    const map = { pending: "Pending", recommended: "Recommended", approved: "Approved", rejected: "Rejected", cancelled: "Cancelled" };
     return map[status] || (status ? status.charAt(0).toUpperCase() + status.slice(1) : "—");
   };
 
@@ -198,6 +198,8 @@ const DirectorViewTravelOrderModal = ({ order: orderProp, orderId, token, onClos
         return "badge bg-success-subtle text-success-emphasis border border-success-subtle";
       case "rejected":
         return "badge bg-danger-subtle text-danger-emphasis border border-danger-subtle";
+      case "cancelled":
+        return "badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle";
       default:
         return "badge bg-light text-dark";
     }
@@ -279,6 +281,8 @@ const DirectorViewTravelOrderModal = ({ order: orderProp, orderId, token, onClos
                         ? { backgroundColor: "rgba(34, 197, 94, 0.18)", color: "#14532d" }
                         : order.status === "rejected"
                         ? { backgroundColor: "rgba(248, 113, 113, 0.16)", color: "#7f1d1d" }
+                        : order.status === "cancelled"
+                        ? { backgroundColor: "rgba(108, 117, 125, 0.18)", color: "#495057" }
                         : { backgroundColor: "rgba(148, 163, 184, 0.16)", color: "#0f172a" }),
                     }}
                   >
@@ -287,6 +291,24 @@ const DirectorViewTravelOrderModal = ({ order: orderProp, orderId, token, onClos
                   <span className="small text-muted">
                     Travel order ID {order.id} • Created {formatDateTime(order.created_at)}
                   </span>
+                </div>
+
+                {/* Name on TO (person the TO is for) — same order as Personnel ViewTravelOrderModal */}
+                <div className="view-modal-section">
+                  <div className="view-modal-section-title d-flex align-items-center gap-2">
+                    <FaUser className="opacity-75" />
+                    Name on travel order
+                  </div>
+                  <div className="row g-2 small">
+                    <div className="col-12 col-md-6">
+                      <span className="text-muted">Name</span>
+                      <p className="mb-0 fw-medium">{order.to_name || getPersonnelName(order.personnel) || "—"}</p>
+                    </div>
+                    <div className="col-12 col-md-6">
+                      <span className="text-muted">Position / Designation</span>
+                      <p className="mb-0 fw-medium">{order.to_position || order.personnel?.position || "—"}</p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Trip details */}
@@ -358,7 +380,7 @@ const DirectorViewTravelOrderModal = ({ order: orderProp, orderId, token, onClos
                   </div>
                 )}
 
-                {/* Submission info */}
+                {/* Submission — who created the TO (same as Personnel ViewTravelOrderModal) */}
                 {(order.submitted_at || order.personnel) && (
                   <div className="view-modal-section">
                     <div className="view-modal-section-title d-flex align-items-center gap-2">
@@ -367,7 +389,7 @@ const DirectorViewTravelOrderModal = ({ order: orderProp, orderId, token, onClos
                     </div>
                     <div className="row g-2 small">
                       <div className="col-12 col-md-6">
-                        <span className="text-muted">Submitted by</span>
+                        <span className="text-muted">Created by</span>
                         <p className="mb-0 fw-medium">{getPersonnelName(order.personnel)}</p>
                       </div>
                       <div className="col-12 col-md-6">
@@ -377,6 +399,33 @@ const DirectorViewTravelOrderModal = ({ order: orderProp, orderId, token, onClos
                           {formatDateTime(order.submitted_at)}
                         </p>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Cancellation details — when TO is cancelled */}
+                {order.status === "cancelled" && (order.cancellation_remarks || order.cancelled_at) && (
+                  <div className="view-modal-section">
+                    <div className="view-modal-section-title d-flex align-items-center gap-2">
+                      <FaBan className="opacity-75" />
+                      Cancellation
+                    </div>
+                    <div className="row g-2 small">
+                      {order.cancellation_remarks && (
+                        <div className="col-12">
+                          <span className="text-muted">Reason for cancellation</span>
+                          <p className="mb-0 fw-medium" style={{ whiteSpace: "pre-wrap" }}>{order.cancellation_remarks}</p>
+                        </div>
+                      )}
+                      {order.cancelled_at && (
+                        <div className="col-12 col-md-6">
+                          <span className="text-muted">Cancelled at</span>
+                          <p className="mb-0 fw-medium d-flex align-items-center gap-1">
+                            <FaCalendarAlt className="opacity-75" />
+                            {formatDateTime(order.cancelled_at)}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
