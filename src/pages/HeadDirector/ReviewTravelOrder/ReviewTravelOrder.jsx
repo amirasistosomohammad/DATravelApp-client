@@ -442,7 +442,7 @@ const ReviewTravelOrder = () => {
                   <div className="rt-value">{order.per_diems_note || "—"}</div>
                 </div>
                 <div className="col-12 col-md-6">
-                  <div className="rt-label">Appropriation</div>
+                  <div className="rt-label">Travel should be charged to</div>
                   <div className="rt-value">{order.appropriation || "—"}</div>
                 </div>
                 <div className="col-12 col-md-6">

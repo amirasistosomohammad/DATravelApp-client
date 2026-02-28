@@ -47,6 +47,20 @@ const statusColors = {
   pending: { bg: "rgba(255, 179, 0, 0.2)", border: "rgba(255, 179, 0, 0.5)" },
   approved: { bg: "rgba(34, 197, 94, 0.2)", border: "rgba(34, 197, 94, 0.5)" },
   rejected: { bg: "rgba(248, 113, 113, 0.2)", border: "rgba(248, 113, 113, 0.5)" },
+  cancelled: { bg: "rgba(108, 117, 125, 0.18)", border: "rgba(108, 117, 125, 0.4)" },
+};
+
+const getPersonnelDisplayName = (order) => {
+  if (order.to_name && String(order.to_name).trim()) return order.to_name.trim();
+  const p = order.personnel;
+  if (!p) return "—";
+  if (p.first_name && p.last_name) {
+    const parts = [p.first_name];
+    if (p.middle_name) parts.push(p.middle_name);
+    parts.push(p.last_name);
+    return parts.join(" ");
+  }
+  return p.name || p.username || "—";
 };
 
 const PersonnelCalendar = () => {
@@ -104,10 +118,12 @@ const PersonnelCalendar = () => {
           const destination = order.destination || order.travel_purpose || "No destination";
           const startStr = format(startDateRaw, "MMM d");
           const endStr = format(endDateRaw, "MMM d");
-          const dateRange = isSameDay(startDateRaw, endDateRaw) 
-            ? startStr 
+          const dateRange = isSameDay(startDateRaw, endDateRaw)
+            ? startStr
             : `${startStr} - ${endStr}`;
-          const title = `${destination} (${dateRange})`;
+          const personName = getPersonnelDisplayName(order);
+          const dept = order.personnel?.department ? `, ${order.personnel.department}` : "";
+          const title = `${personName}${dept} • ${destination} (${dateRange})`;
           return {
             id: order.id,
             title: title,
@@ -713,10 +729,10 @@ const PersonnelCalendar = () => {
                 <div className="personnel-calendar-header-icon me-2">
                   <FaCalendarAlt />
                 </div>
-                Calendar
+                Travel Order Calendar
               </h1>
               <p className="mb-0 small ms-2" style={{ color: "var(--text-muted)" }}>
-                Your travel orders by date. Navigate to any month/year to view orders. Click an event to view or edit.
+                Organization-wide travel schedule. Select an event to view details.
               </p>
             </div>
             <div className="personnel-calendar-actions d-flex flex-column flex-md-row gap-2 align-items-stretch align-items-md-center">

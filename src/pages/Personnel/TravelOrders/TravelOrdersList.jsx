@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FaFileAlt, FaPlus, FaSyncAlt, FaEdit, FaTrash, FaPaperPlane, FaSearch, FaListOl, FaTimes, FaEraser, FaChevronLeft, FaChevronRight, FaAngleDoubleLeft, FaAngleDoubleRight, FaEye } from "react-icons/fa";
+import { FaFileAlt, FaPlus, FaSyncAlt, FaEdit, FaTrash, FaPaperPlane, FaSearch, FaListOl, FaTimes, FaEraser, FaChevronLeft, FaChevronRight, FaAngleDoubleLeft, FaAngleDoubleRight, FaEye, FaShareAlt } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { useAuth } from "../../../contexts/AuthContext";
 import LoadingSpinner from "../../../components/admin/LoadingSpinner";
@@ -12,6 +12,18 @@ import ViewTravelOrderModal from "./ViewTravelOrderModal";
 
 const formatFullNumber = (num) =>
   Number(num ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+const getCreatorName = (order) => {
+  const p = order?.personnel;
+  if (!p) return "—";
+  if (p.first_name && p.last_name) {
+    const parts = [p.first_name];
+    if (p.middle_name) parts.push(p.middle_name);
+    parts.push(p.last_name);
+    return parts.join(" ");
+  }
+  return p.name || p.username || "—";
+};
 
 const API_BASE_URL =
   import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api";
@@ -750,6 +762,9 @@ const TravelOrdersList = () => {
                 <tbody>
                   {pageItems.map((order, index) => {
                     const rowNum = (currentPage - 1) * pageSize + index + 1;
+                    const isOwner = user?.id != null && Number(order.personnel_id) === Number(user.id);
+                    const isEditor = user?.id != null && order.editors && order.editors.some((e) => Number(e.personnel_id) === Number(user.id));
+                    const canEditOrder = ["draft", "pending", "approved", "rejected", "cancelled"].includes(order.status) && (isOwner || isEditor);
                     return (
                       <tr key={order.id}>
                         <td className="py-2 px-2 px-md-3 small text-center travel-orders-col-no" style={{ color: "var(--text-muted)", fontWeight: 800 }}>{rowNum}</td>
@@ -764,43 +779,65 @@ const TravelOrdersList = () => {
                           >
                             <FaEye style={{ fontSize: "0.75rem" }} />
                           </button>
-                          {order.status === "draft" && (
-                            <>
-                              <button
-                                type="button"
-                                className="btn btn-sm me-1 travel-orders-action-btn"
-                                style={{ backgroundColor: "var(--primary-color)", borderColor: "var(--primary-color)", color: "#fff", width: "32px", height: "32px", borderRadius: "50%", padding: 0 }}
-                                title="Submit"
-                                onClick={() => setSubmitModalOrder(order)}
-                                disabled={actionLoading === order.id}
-                              >
-                                <FaPaperPlane style={{ fontSize: "0.75rem" }} />
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-sm me-1 travel-orders-action-btn"
-                                style={{ backgroundColor: "#d97706", borderColor: "#d97706", color: "#fff", width: "32px", height: "32px", borderRadius: "50%", padding: 0 }}
-                                title="Edit"
-                                onClick={() => setEditModalOrderId(order.id)}
-                                disabled={actionLoading === order.id}
-                              >
-                                {actionLoading === order.id ? <span className="spinner-border spinner-border-sm" /> : <FaEdit />}
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-sm travel-orders-action-btn"
-                                style={{ backgroundColor: "#dc3545", borderColor: "#dc3545", color: "#fff", width: "32px", height: "32px", borderRadius: "50%", padding: 0 }}
-                                title="Delete"
-                                onClick={() => handleDelete(order)}
-                                disabled={actionLoading === order.id}
-                              >
-                                {actionLoading === order.id ? <span className="spinner-border spinner-border-sm" /> : <FaTrash />}
-                              </button>
-                            </>
+                          {order.status === "draft" && (isOwner || isEditor) && (
+                            <button
+                              type="button"
+                              className="btn btn-sm me-1 travel-orders-action-btn"
+                              style={{ backgroundColor: "var(--primary-color)", borderColor: "var(--primary-color)", color: "#fff", width: "32px", height: "32px", borderRadius: "50%", padding: 0 }}
+                              title="Submit"
+                              onClick={() => setSubmitModalOrder(order)}
+                              disabled={actionLoading === order.id}
+                            >
+                              <FaPaperPlane style={{ fontSize: "0.75rem" }} />
+                            </button>
+                          )}
+                          {canEditOrder && (
+                            <button
+                              type="button"
+                              className="btn btn-sm me-1 travel-orders-action-btn"
+                              style={{ backgroundColor: "#d97706", borderColor: "#d97706", color: "#fff", width: "32px", height: "32px", borderRadius: "50%", padding: 0 }}
+                              title="Edit"
+                              onClick={() => setEditModalOrderId(order.id)}
+                              disabled={actionLoading === order.id}
+                            >
+                              {actionLoading === order.id ? <span className="spinner-border spinner-border-sm" /> : <FaEdit />}
+                            </button>
+                          )}
+                          {order.status === "draft" && isOwner && (
+                            <button
+                              type="button"
+                              className="btn btn-sm travel-orders-action-btn"
+                              style={{ backgroundColor: "#dc3545", borderColor: "#dc3545", color: "#fff", width: "32px", height: "32px", borderRadius: "50%", padding: 0 }}
+                              title="Delete"
+                              onClick={() => handleDelete(order)}
+                              disabled={actionLoading === order.id}
+                            >
+                              {actionLoading === order.id ? <span className="spinner-border spinner-border-sm" /> : <FaTrash />}
+                            </button>
                           )}
                         </td>
                         <td className="py-2 px-2 px-md-3 small text-start travel-orders-col-purpose" style={{ color: "var(--text-primary)" }} title={order.travel_purpose}>
-                          <span className="text-truncate d-inline-block travel-orders-purpose-text">{order.travel_purpose}</span>
+                          <div className="d-flex flex-column gap-1">
+                            <span className="text-truncate d-inline-block travel-orders-purpose-text">{order.travel_purpose}</span>
+                            {isEditor && !isOwner && (
+                              <span
+                                className="d-inline-flex align-items-center gap-1 badge px-2 py-0"
+                                style={{
+                                  fontSize: "0.65rem",
+                                  fontWeight: 600,
+                                  backgroundColor: "rgba(13, 122, 58, 0.12)",
+                                  color: "var(--primary-color)",
+                                  border: "1px solid rgba(13, 122, 58, 0.25)",
+                                  borderRadius: "4px",
+                                  width: "fit-content",
+                                }}
+                                title={`Shared with you by ${getCreatorName(order)}`}
+                              >
+                                <FaShareAlt style={{ fontSize: "0.6rem" }} />
+                                Shared with you
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-2 px-2 px-md-3 small text-start travel-orders-col-destination" style={{ color: "var(--text-primary)" }} title={order.destination || ""}>{order.destination || "—"}</td>
                         <td className="py-2 px-2 px-md-3 small text-start travel-orders-col-dates" style={{ color: "var(--text-muted)" }}>

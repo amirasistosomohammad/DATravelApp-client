@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { FaEye, FaPaperclip, FaDownload, FaUser, FaCalendarAlt, FaCheckCircle, FaFilePdf, FaFileExcel, FaUserPlus, FaTrash, FaEdit, FaTimes, FaBan } from "react-icons/fa";
+import { FaEye, FaPaperclip, FaDownload, FaUser, FaCalendarAlt, FaCheckCircle, FaFilePdf, FaFileExcel, FaUserPlus, FaTrash, FaEdit, FaTimes, FaBan, FaShareAlt } from "react-icons/fa";
 import { toast } from "react-toastify";
 import Portal from "../../../components/Portal";
 import LoadingSpinner from "../../../components/admin/LoadingSpinner";
@@ -266,10 +266,14 @@ const ViewTravelOrderModal = ({ orderId, token, onClose, apiPrefix = "personnel"
 
   const isPersonnelOwnView = apiPrefix === "personnel" && !peerViewBasePath;
   const isCreator = order && currentUserPersonnelId != null && Number(order.personnel_id) === Number(currentUserPersonnelId);
-  const canEdit = order && order.status === "draft" && currentUserPersonnelId != null && (
+  const isSharedWithMe = order && currentUserPersonnelId != null && !isCreator && (
+    order.editors && order.editors.some((e) => Number(e.personnel_id) === Number(currentUserPersonnelId))
+  );
+  const creatorName = order?.personnel ? getPersonnelName(order.personnel) : "—";
+  const canEdit = order && currentUserPersonnelId != null && (
     Number(order.personnel_id) === Number(currentUserPersonnelId) ||
     (order.editors && order.editors.some((e) => Number(e.personnel_id) === Number(currentUserPersonnelId)))
-  );
+  ) && ["draft", "pending", "approved", "rejected", "cancelled"].includes(order.status);
   const canCancel = order && ["pending", "recommended", "approved"].includes(order.status) && currentUserPersonnelId != null && (
     Number(order.personnel_id) === Number(currentUserPersonnelId) ||
     (order.editors && order.editors.some((e) => Number(e.personnel_id) === Number(currentUserPersonnelId)))
@@ -455,7 +459,6 @@ const ViewTravelOrderModal = ({ orderId, token, onClose, apiPrefix = "personnel"
               </div>
             ) : order ? (
               <div className="modal-body px-3 px-md-4" style={{ backgroundColor: "var(--bs-body-bg, #fff)" }}>
-                {/* Status badge */}
                 <div className="view-modal-status mb-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
                   <span
                     className="badge px-3 py-1 fw-semibold text-uppercase"
@@ -482,6 +485,30 @@ const ViewTravelOrderModal = ({ orderId, token, onClose, apiPrefix = "personnel"
                     Travel order ID {order.id} • Created {formatDateTime(order.created_at)}
                   </span>
                 </div>
+
+                {/* Shared with you indicator (for invited editors) */}
+                {isSharedWithMe && (
+                  <div
+                    className="mb-3 px-3 py-2 rounded"
+                    style={{
+                      backgroundColor: "rgba(13, 122, 58, 0.06)",
+                      borderLeft: "4px solid var(--primary-color)",
+                      fontSize: "0.875rem",
+                    }}
+                    role="status"
+                    aria-label="Shared travel order"
+                  >
+                    <div className="d-flex align-items-center gap-2 flex-wrap">
+                      <FaShareAlt style={{ color: "var(--primary-color)", fontSize: "1rem" }} aria-hidden />
+                      <span className="fw-semibold" style={{ color: "var(--text-primary)" }}>
+                        Shared with you
+                      </span>
+                    </div>
+                    <p className="mb-0 mt-1 small text-muted" style={{ paddingLeft: "1.5rem" }}>
+                      This travel order was created by <span className="fw-medium" style={{ color: "var(--text-primary)" }}>{creatorName}</span> and shared with you for viewing and editing.
+                    </p>
+                  </div>
+                )}
 
                 {/* Name on TO (person the TO is for) — from form */}
                 <div className="view-modal-section">
@@ -552,7 +579,7 @@ const ViewTravelOrderModal = ({ orderId, token, onClose, apiPrefix = "personnel"
                       <p className="mb-0 fw-medium">{order.per_diems_note || "—"}</p>
                     </div>
                     <div className="col-12 col-md-6">
-                      <span className="text-muted">Appropriation</span>
+                      <span className="text-muted">Travel should be charged to</span>
                       <p className="mb-0 fw-medium">{order.appropriation || "—"}</p>
                     </div>
                     <div className="col-12 col-md-6">

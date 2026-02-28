@@ -210,7 +210,7 @@ const TravelOrderForm = () => {
       e.per_diems_expenses = "Enter a valid amount for per diems / expenses.";
     }
     if (!data.appropriation?.trim())
-      e.appropriation = "Appropriation is required.";
+      e.appropriation = "Travel should be charged to is required.";
     return e;
   };
 
@@ -794,13 +794,13 @@ const TravelOrderForm = () => {
                       className="form-label small fw-semibold"
                       style={{ color: "var(--text-primary)" }}
                     >
-                      Appropriation <span className="text-danger">*</span>
+                      Travel should be charged to <span className="text-danger">*</span>
                     </label>
                     <input
                       type="text"
                       name="appropriation"
                       className={`form-control form-control-sm ${errors.appropriation ? "is-invalid" : ""}`}
-                      placeholder="Enter appropriation or chargeable account"
+                      placeholder="Enter account or fund to charge"
                       value={formData.appropriation}
                       onChange={handleChange}
                       maxLength={255}

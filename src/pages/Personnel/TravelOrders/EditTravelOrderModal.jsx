@@ -9,6 +9,8 @@ const API_BASE_URL =
   import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api";
 
 const DEFAULT_FORM = {
+  to_name: "",
+  to_position: "",
   travel_purpose: "",
   destination: "",
   official_station: "",
@@ -67,12 +69,15 @@ const EditTravelOrderModal = ({ orderId, token, onClose, onSuccess }) => {
       const data = await response.json();
       if (!response.ok) throw data?.message || "Failed to load travel order";
       const order = data?.data ?? data;
-      if (order.status !== "draft") {
-        toast.error("Only draft travel orders can be edited.");
+      const allowedStatuses = ["draft", "pending", "approved", "rejected", "cancelled"];
+      if (!allowedStatuses.includes(order.status)) {
+        toast.error("This travel order cannot be edited in its current status.");
         closeImmediately();
         return;
       }
       const loaded = {
+        to_name: order.to_name ?? (order.personnel ? [order.personnel.first_name, order.personnel.middle_name, order.personnel.last_name].filter(Boolean).join(" ") : "") ?? "",
+        to_position: order.to_position ?? order.personnel?.position ?? "",
         travel_purpose: order.travel_purpose ?? "",
         destination: order.destination ?? "",
         official_station: order.official_station ?? "",
@@ -150,6 +155,7 @@ const EditTravelOrderModal = ({ orderId, token, onClose, onSuccess }) => {
 
   const computeErrors = (data) => {
     const e = {};
+    if (!data.to_name?.trim()) e.to_name = "Name is required.";
     if (!data.travel_purpose?.trim()) e.travel_purpose = "Travel purpose is required.";
     if (!data.destination?.trim()) e.destination = "Destination is required.";
     if (!data.start_date) e.start_date = "Start date is required.";
@@ -166,7 +172,7 @@ const EditTravelOrderModal = ({ orderId, token, onClose, onSuccess }) => {
     ) {
       e.per_diems_expenses = "Enter a valid amount for per diems / expenses.";
     }
-    if (!data.appropriation?.trim()) e.appropriation = "Appropriation is required.";
+    if (!data.appropriation?.trim()) e.appropriation = "Travel should be charged to is required.";
     return e;
   };
 
@@ -243,6 +249,8 @@ const EditTravelOrderModal = ({ orderId, token, onClose, onSuccess }) => {
 
   const buildPayload = () => {
     const payload = new FormData();
+    payload.append("to_name", formData.to_name.trim());
+    if (formData.to_position != null) payload.append("to_position", formData.to_position.trim());
     payload.append("travel_purpose", formData.travel_purpose.trim());
     payload.append("destination", formData.destination.trim());
     if (formData.official_station) payload.append("official_station", formData.official_station.trim());
@@ -351,6 +359,31 @@ const EditTravelOrderModal = ({ orderId, token, onClose, onSuccess }) => {
                   <div className="form-section">
                     <div className="form-section-title">Trip details</div>
                     <div className="row g-3">
+                      <div className="col-12 col-md-6">
+                        <label className="form-label">Name <span className="text-danger">*</span></label>
+                        <input
+                          type="text"
+                          name="to_name"
+                          className={`form-control ${errors.to_name ? "is-invalid" : ""}`}
+                          placeholder="Enter full name"
+                          value={formData.to_name}
+                          onChange={handleChange}
+                          maxLength={255}
+                        />
+                        {errors.to_name && <div className="invalid-feedback d-block">{errors.to_name}</div>}
+                      </div>
+                      <div className="col-12 col-md-6">
+                        <label className="form-label">Position / Designation</label>
+                        <input
+                          type="text"
+                          name="to_position"
+                          className="form-control"
+                          placeholder="Enter position or designation"
+                          value={formData.to_position}
+                          onChange={handleChange}
+                          maxLength={255}
+                        />
+                      </div>
                       <div className="col-12">
                         <label className="form-label">Travel purpose <span className="text-danger">*</span></label>
                         <textarea
@@ -466,7 +499,7 @@ const EditTravelOrderModal = ({ orderId, token, onClose, onSuccess }) => {
                         />
                       </div>
                       <div className="col-12 col-md-6">
-                        <label className="form-label">Appropriation <span className="text-danger">*</span></label>
+                        <label className="form-label">Travel should be charged to <span className="text-danger">*</span></label>
                         <input
                           type="text"
                           name="appropriation"

@@ -362,7 +362,7 @@ const DirectorViewTravelOrderModal = ({ order: orderProp, orderId, token, onClos
                       <p className="mb-0 fw-medium">{order.per_diems_note || "—"}</p>
                     </div>
                     <div className="col-12 col-md-6">
-                      <span className="text-muted">Appropriation</span>
+                      <span className="text-muted">Travel should be charged to</span>
                       <p className="mb-0 fw-medium">{order.appropriation || "—"}</p>
                     </div>
                     <div className="col-12 col-md-6">

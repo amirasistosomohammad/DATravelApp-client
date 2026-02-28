@@ -217,7 +217,7 @@ const Sidebar = ({ onCloseSidebar }) => {
       items: [
         {
           icon: "fas fa-users",
-          label: "Travel orders by department",
+          label: "All Travel Orders",
           href: "/travel-orders/all-personnel",
         },
       ],

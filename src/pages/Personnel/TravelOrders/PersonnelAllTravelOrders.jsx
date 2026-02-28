@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import { useAuth } from "../../../contexts/AuthContext";
 import LoadingSpinner from "../../../components/admin/LoadingSpinner";
 import ViewTravelOrderModal from "./ViewTravelOrderModal";
+import EditTravelOrderModal from "./EditTravelOrderModal";
 
 const API_BASE_URL =
   import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api";
@@ -64,6 +65,7 @@ const PersonnelAllTravelOrders = () => {
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [viewModalOrderId, setViewModalOrderId] = useState(null);
+  const [editModalOrderId, setEditModalOrderId] = useState(null);
 
   const fetchDepartments = useCallback(async () => {
     if (!token) return;
@@ -364,7 +366,7 @@ const PersonnelAllTravelOrders = () => {
         <div className="flex-grow-1 mb-2 mb-md-0">
           <h1 className="h4 mb-1 fw-bold" style={{ color: "var(--text-primary)" }}>
             <FaUsers className="me-2" />
-            Travel orders by department
+            All Travel Orders
           </h1>
           <p className="mb-0 small" style={{ color: "var(--text-muted)" }}>
             Browse and filter travel orders across personnel by department, name, or position.
@@ -679,6 +681,17 @@ const PersonnelAllTravelOrders = () => {
           token={token}
           onClose={() => setViewModalOrderId(null)}
           peerViewBasePath="personnel/travel-orders/all"
+          currentUserPersonnelId={user?.id}
+          onEditClick={(id) => { setViewModalOrderId(null); setEditModalOrderId(id); }}
+        />
+      )}
+
+      {editModalOrderId && (
+        <EditTravelOrderModal
+          orderId={editModalOrderId}
+          token={token}
+          onClose={() => setEditModalOrderId(null)}
+          onSuccess={() => { setEditModalOrderId(null); fetchOrders(); }}
         />
       )}
     </div>
